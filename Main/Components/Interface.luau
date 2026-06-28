@@ -1,6 +1,6 @@
 local Library = (DoorsMenuRemake.UILibrary == "Linoria" and "LinoriaLib" or "Obsidian")
 local BaseUrl = "https://raw.githubusercontent.com/mstudio45/" .. Library .. "/refs/heads/main/"
-local DoorsMenuRemakeUrl = "https://raw.githubusercontent.com/bocaj111004/DoorsMenuRemake/refs/heads/main/"
+local DoorsMenuRemakeUrl = "https://raw.githubusercontent.com/surpriseseaside/DoorsMenuRemake/refs/heads/main/"
 
 local Interface = {
   Library = loadstring(game:HttpGet(BaseUrl .. "Library.lua"))(),
