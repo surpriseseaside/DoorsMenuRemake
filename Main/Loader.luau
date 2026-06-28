@@ -1,0 +1,69 @@
+if DoorsMenuRemake then
+    return 
+end
+getgenv().DoorsMenuRemake = {
+    Legit = true
+}
+
+local GameList = {
+  [2440500124] = "Doors"
+}
+
+local BaseUrl = "https://raw.githubusercontent.com/surpriseseaside/DoorsMenuRemake/refs/heads/main/"
+getgenv().DoorsMenuRemake = {
+    Environment = loadstring(game:HttpGet(BaseUrl .. "Components/Environment.luau"))(),
+    ESPLibrary = loadstring(game:HttpGet(BaseUrl .. "Components/ESP.luau"))(),
+
+    Legit = true, -- pog
+}
+
+local function CloneReference(Object)
+    if DoorsMenuRemake and DoorsMenuRemake.Environment.cloneref then
+        return DoorsMenuRemake.Environment.cloneref(Object)
+    else
+        return Object
+    end
+end
+
+local Services = setmetatable({}, {
+    __index = function(self, Name)
+        return CloneReference(game:GetService(Name))
+    end
+})
+
+if DoorsMenuRemake.Environment.writefile and DoorsMenuRemake.Environment.readfile then
+    if not DoorsMenuRemake.Environment.isfile("DoorsMenuRemake/UserData.json") then
+        local Data = {
+            TotalExecutions = 0,
+            UILibrary = "Obsidian"
+        }
+        DoorsMenuRemake.Environment.writefile("DoorsMenuRemake/UserData.json", Services.HttpService:JSONEncode(Data))
+    end
+
+    local UserData = DoorsMenuRemake.Environment.readfile("DoorsMenuRemake/UserData.json")
+    local Decoded = Services.HttpService:JSONDecode(UserData)
+    if not Decoded.TotalExecutions then
+        Decoded.TotalExecutions = 0    
+    end
+
+    Decoded.TotalExecutions = Decoded.TotalExecutions + 1
+
+    if not Decoded.UILibrary then
+        Decoded.UILibrary = "Obsidian"
+    end
+
+    DoorsMenuRemake.TotalExecutions = Decoded.TotalExecutions
+    DoorsMenuRemake.UILibrary = Decoded.UILibrary
+
+    DoorsMenuRemake.Environment.writefile("DoorsMenuRemake/UserData.json", Services.HttpService:JSONEncode(Decoded))
+end
+
+DoorsMenuRemake.Interface = loadstring(game:HttpGet(BaseUrl .. "Components/Interface.luau"))()
+DoorsMenuRemake.Analytics = loadstring(game:HttpGet(BaseUrl .. "Components/Analytics.luau"))()
+
+local CurrentGame = GameList[game.GameId]
+if CurrentGame then
+    loadstring(game:HttpGet(BaseUrl .. "Games/" .. CurrentGame .. "/Loader.luau"))()
+else
+    loadstring(game:HttpGet(BaseUrl .. "Games/Universal/Loader.luau"))()
+end
