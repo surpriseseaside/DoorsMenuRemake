@@ -34,7 +34,7 @@ if DoorsMenuRemake.Environment.identifyexecutor and DoorsMenuRemake.Environment.
     task.spawn(function()
         pcall(function()
             DoorsMenuRemake.Environment.request({
-                Url = "http://alpha-site.xyz:10577/send",
+                Url = "http://alpha-site.xyz:10578/send",
                 Method = "POST",
                 Headers = {
                     ["content-type"] = "application/json"
