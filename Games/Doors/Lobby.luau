@@ -36,8 +36,8 @@ end
 task.wait(1)
 
 local Window = Library:CreateWindow({
-    Title = "DoorsMenuRemake Hub",
-    Footer = "dsc.gg/DoorsMenuRemakehub",
+    Title = "DoorsMenuRemake",
+    Footer = "dsc.gg/DoorsMenuRemake",
     NotifySide = "Right",
     ShowCustomCursor = false,
     AutoShow = true,
