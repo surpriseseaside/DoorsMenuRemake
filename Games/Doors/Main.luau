@@ -491,7 +491,7 @@ Functions.Notify = function(Settings)
 			end
 		end
 		Globals.DoorsNotify({
-			Title = "DoorsMenuRemake Hub",
+			Title = "DoorsMenuRemake",
 			Description = Settings.Title,
 			Reason = Settings.Body,
 			Style = IsEntity and "WARNING" or "NOTIFICATION",
@@ -508,13 +508,13 @@ Functions.Notify = function(Settings)
 
 		if Settings.Image then
 			Globals.STX:Notify(
-				{Title = "DoorsMenuRemake Hub", Description = Settings.Title .. "\n" .. Settings.Body},
+				{Title = "DoorsMenuRemake", Description = Settings.Title .. "\n" .. Settings.Body},
 				{OutlineColor = Library.Scheme.AccentColor,Time = Settings.Time or 5, Type = "image"},
 				{Image = Settings.Image, ImageColor = Color3.fromRGB(255, 255, 255)}
 			)
 		else
 			Globals.STX:Notify(
-				{Title = "DoorsMenuRemake Hub", Description = Settings.Title .. "\n" .. Settings.Body},
+				{Title = "DoorsMenuRemake", Description = Settings.Title .. "\n" .. Settings.Body},
 				{OutlineColor = Library.Scheme.AccentColor,Time = Settings.Time or 5, Type = "default"}
 			)
 		end
@@ -1004,8 +1004,8 @@ Functions.GetRandomCode = function()
 end
 
 local Window = Library:CreateWindow({
-	Title = "DoorsMenuRemake Hub",
-	Footer = "dsc.gg/DoorsMenuRemakehub",
+	Title = "DoorsMenuRemake",
+	Footer = "dsc.gg/DoorsMenuRemake",
 	NotifySide = "Right",
 	ShowCustomCursor = false,
 	AutoShow = true,
@@ -2942,7 +2942,7 @@ Functions.HandleCharacter = function(NewCharacter)
 		end
 
 		if Globals.SelfKilled and Globals.MainUI:FindFirstChild("Statistics") then
-			Globals.MainUI.Statistics.Death.Text = "Died to DoorsMenuRemake Hub"
+			Globals.MainUI.Statistics.Death.Text = "Died to DoorsMenuRemake"
 		end
 
 		local MainFrame = Globals.MainUI:FindFirstChild("MainFrame")
