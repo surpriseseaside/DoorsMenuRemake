@@ -1706,9 +1706,45 @@ local function GetSchemeColor(name, fallback)
 end
 
 local function GetDPIScale()
-	local ok, val = pcall(function() return Library.DPIScale end)
-	if ok and val then return val / 100 end
+	local ok, val = pcall(function() return Library.DPIScale or Library.DpiScale end)
+	if ok and type(val) == "number" and val > 0 then
+		if val > 5 then return val / 100 end
+		return val
+	end
 	return 1
+end
+
+local function MakeDraggable(frame, handle)
+	local dragging, dragInput, dragStart, startPos
+
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	handle.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	Services.UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
 end
 
 local function CreateHUDFrame()
@@ -1725,7 +1761,7 @@ local function CreateHUDFrame()
 	mainFrame.Name = "HUDFrame"
 	mainFrame.AnchorPoint = Vector2.new(0, 0.5)
 	mainFrame.Position = UDim2.new(0, 12, 0.4, 0)
-	mainFrame.Size = UDim2.new(0, 230 * dpi, 0, 0)
+	mainFrame.Size = UDim2.new(0, 230 * dpi, 0, 50 * dpi)
 	mainFrame.BackgroundColor3 = GetSchemeColor("BackgroundColor", Color3.fromRGB(20, 20, 20))
 	mainFrame.BackgroundTransparency = 0.15
 	mainFrame.BorderSizePixel = 0
@@ -1750,6 +1786,8 @@ local function CreateHUDFrame()
 	layout.Padding = UDim.new(0, 4 * dpi)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = mainFrame
+
+	MakeDraggable(mainFrame, mainFrame)
 
 	local function MakeSection(name, order)
 		local holder = Instance.new("Frame")
@@ -1819,6 +1857,135 @@ end
 
 pcall(function()
 	Globals.HUDScreen, Globals.HUDFrame = CreateHUDFrame()
+end)
+Globals.HUDLastUpdate = 0
+Globals.HUDFPS = 60
+Globals.HUDFPSCount = 0
+Globals.HUDFPSLast = tick()
+
+pcall(function()
+	Connections.HUDFPSCounter = Services.RunService.RenderStepped:Connect(function()
+		Globals.HUDFPSCount += 1
+		if tick() - Globals.HUDFPSLast >= 1 then
+			Globals.HUDFPS = Globals.HUDFPSCount
+			Globals.HUDFPSCount = 0
+			Globals.HUDFPSLast = tick()
+		end
+	end)
+end)
+
+pcall(function()
+	Connections.HUDThemeSync = Services.RunService.Heartbeat:Connect(function()
+		if not Globals.HUDFrame or not Globals.HUDFrame.Parent then return end
+
+		local mainFrame = Globals.HUDFrame
+		local stroke = mainFrame:FindFirstChildOfClass("UIStroke")
+
+		mainFrame.BackgroundColor3 = GetSchemeColor("BackgroundColor", Color3.fromRGB(20, 20, 20))
+		if stroke then stroke.Color = GetSchemeColor("OutlineColor", Color3.fromRGB(50, 50, 50)) end
+
+		for _, section in mainFrame:GetChildren() do
+			if section:IsA("Frame") and section.Name:find("Section") then
+				local header = section:FindFirstChild("Header")
+				local div = section:FindFirstChild("Divider")
+				if header then header.TextColor3 = GetSchemeColor("AccentColor", Color3.fromRGB(0, 150, 255)) end
+				if div then div.BackgroundColor3 = GetSchemeColor("OutlineColor", Color3.fromRGB(50, 50, 50)) end
+			end
+		end
+
+		local roomLabel = Globals.HUDRoomLabel
+		if roomLabel then roomLabel.TextColor3 = GetSchemeColor("FontColor", Color3.fromRGB(255, 255, 255)) end
+	end)
+end)
+
+Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
+	pcall(function()
+		if tick() - Globals.HUDLastUpdate < 0.25 then return end
+		Globals.HUDLastUpdate = tick()
+
+		if not Globals.HUDFrame or not Globals.HUDFrame.Parent then return end
+
+		local dpi = GetDPIScale()
+		local opacity = Options.HUDOpacity.Value
+		local textSize = Options.HUDTextSize.Value
+
+		Globals.HUDFrame.BackgroundTransparency = 1 - opacity
+
+		local showRoom = Toggles.ShowActualRoomToggle.Value
+		local showStats = Toggles.ShowStatisticsToggle.Value
+		local showEntities = Toggles.ShowSpawnedEntitiesToggle.Value
+
+		local roomSection = Globals.HUDFrame:FindFirstChild("RoomSection")
+		local statsSection = Globals.HUDFrame:FindFirstChild("StatisticsSection")
+		local entitySection = Globals.HUDFrame:FindFirstChild("EntitiesSection")
+
+		if roomSection then
+			roomSection.Visible = showRoom
+			if showRoom then
+				local lbl = Globals.HUDRoomLabel
+				if lbl then
+					lbl.Visible = true
+					lbl.TextSize = textSize * dpi
+					local currentRoom = LocalPlayer:GetAttribute("CurrentRoom")
+					lbl.Text = "  " .. (currentRoom and tostring(currentRoom) or "?")
+				end
+			end
+		end
+
+		if statsSection then
+			statsSection.Visible = showStats
+			if showStats then
+				local lbl = Globals.HUDStatsLabel
+				if lbl then
+					lbl.Visible = true
+					lbl.TextSize = (textSize - 2) * dpi
+					local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
+					local mem = math.floor(collectgarbage("count"))
+					lbl.Text = string.format(
+						"  FPS: %d    Ping: %dms\n  Memory: %dMB",
+						Globals.HUDFPS, ping, mem
+					)
+				end
+			end
+		end
+
+		if entitySection then
+			entitySection.Visible = showEntities
+			if showEntities then
+				local lbl = Globals.HEntitiesLabel
+				if lbl then
+					lbl.Visible = true
+					lbl.TextSize = (textSize - 2) * dpi
+					local lines = {}
+					for _, Entity in Services.Workspace:GetChildren() do
+						local entityData = Entities[Entity.Name]
+						if entityData and Entity.PrimaryPart then
+							local success, dist = pcall(function()
+								return math.floor(LocalPlayer:DistanceFromCharacter(Entity.PrimaryPart.Position))
+							end)
+							if success then
+								table.insert(lines, string.format("  %s  %dm", entityData.Alias, dist))
+							end
+						end
+					end
+					lbl.Text = #lines > 0 and table.concat(lines, "\n") or "  None"
+				end
+			end
+		end
+
+		local totalH = 12 * dpi
+		if showRoom then totalH = totalH + 26 * dpi end
+		if showStats then
+			local lbl = Globals.HUDStatsLabel
+			if lbl then totalH = totalH + lbl.TextBounds.Y + 8 * dpi end
+		end
+		if showEntities then
+			local lbl = Globals.HEntitiesLabel
+			if lbl then totalH = totalH + lbl.TextBounds.Y + 8 * dpi end
+		end
+		if totalH < 30 * dpi then totalH = 30 * dpi end
+		Globals.HUDFrame.Size = UDim2.new(0, 230 * dpi, 0, totalH)
+	end)
 end)
 Globals.HUDLastUpdate = 0
 Globals.HUDFPS = 60
