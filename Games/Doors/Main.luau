@@ -1550,6 +1550,8 @@ end)
 Groupboxes.Visuals_LeftTab = Tabs.Visuals:AddLeftTabbox("Camera / Effects")
 Groupboxes.Visuals_Camera = Groupboxes.Visuals_LeftTab:AddTab("Camera")
 Groupboxes.Visuals_Camera:AddToggle("AmbientToggle", { Text = "Ambient", Default = false, Tooltip = "Changes the lighting color to the specified value." })
+Groupboxes.Visuals_Camera:AddToggle("BodyLightToggle", { Text = "Body Light", Default = false, Tooltip = "Adds a PointLight to your character for better visibility." })
+Groupboxes.Visuals_Camera:AddSlider("BodyLightRange", { Text = "Light Range", Min = 5, Max = 60, Default = 30, Rounding = 0, Compact = true })
 Groupboxes.Visuals_Camera:AddSlider("FieldOfView", { Text = "Field of View", Min = 1, Max = 120, Default = 70, Rounding = 0 })
 Groupboxes.Visuals_Camera:AddDivider()
 Groupboxes.Visuals_Camera:AddToggle("RemoveCameraShake", {
@@ -1585,6 +1587,47 @@ Toggles.AmbientToggle:OnChanged(function(Value)
 	Services.TweenService:Create(Services.Lighting, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {
 		Ambient = Value and Options.AmbientColor.Value or OldAmbient
 	}):Play()
+end)
+Toggles.BodyLightToggle:AddColorPicker("BodyLightColor", { Text = "Body Light", Default = Color3.fromRGB(255, 255, 255), Transparency = 0 })
+Toggles.BodyLightToggle:OnChanged(function(Value)
+	if Value and Character then
+		local Head = Character:FindFirstChild("Head")
+		if Head then
+			local Light = Instance.new("PointLight")
+			Light.Name = "BodyLight"
+			Light.Color = Options.BodyLightColor.Value
+			Light.Brightness = 1
+			Light.Range = Options.BodyLightRange.Value
+			Light.Shadows = false
+			Light.Parent = Head
+		end
+	else
+		if Character then
+			local Head = Character:FindFirstChild("Head")
+			if Head then
+				local Light = Head:FindFirstChild("BodyLight")
+				if Light then Light:Destroy() end
+			end
+		end
+	end
+end)
+Options.BodyLightColor:OnChanged(function(Value)
+	if Toggles.BodyLightToggle.Value and Character then
+		local Head = Character:FindFirstChild("Head")
+		if Head then
+			local Light = Head:FindFirstChild("BodyLight")
+			if Light then Light.Color = Value end
+		end
+	end
+end)
+Options.BodyLightRange:OnChanged(function(Value)
+	if Toggles.BodyLightToggle.Value and Character then
+		local Head = Character:FindFirstChild("Head")
+		if Head then
+			local Light = Head:FindFirstChild("BodyLight")
+			if Light then Light.Range = Value end
+		end
+	end
 end)
 
 local Main_Game
@@ -1736,6 +1779,7 @@ do
 	HUDHolder.Visible = false
 
 	Instance.new("UICorner", HUDHolder).CornerRadius = UDim.new(0, Library.CornerRadius)
+	Library:AddToRegistry(HUDHolder, { BackgroundColor3 = "BackgroundColor" })
 
 	local UIScaleInst = Instance.new("UIScale", HUDHolder)
 	UIScaleInst.Scale = Library.DPIScale
@@ -3051,6 +3095,19 @@ Functions.HandleCharacter = function(NewCharacter)
 
 	if Toggles.EnableCharacterJump.Value  then Character:SetAttribute("CanJump",  true) end
 	if Toggles.EnableCharacterSlide.Value then Character:SetAttribute("CanSlide", true) end
+
+	if Toggles.BodyLightToggle.Value then
+		local Head = Character:FindFirstChild("Head")
+		if Head and not Head:FindFirstChild("BodyLight") then
+			local Light = Instance.new("PointLight")
+			Light.Name = "BodyLight"
+			Light.Color = Options.BodyLightColor.Value
+			Light.Brightness = 1
+			Light.Range = Options.BodyLightRange.Value
+			Light.Shadows = false
+			Light.Parent = Head
+		end
+	end
 
 	if Functions.CheckCompatability({"require"}) then
 		Main_Game = DoorsMenuRemake.Environment.require(Globals.MainUI.Initiator.Main_Game)
