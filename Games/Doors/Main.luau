@@ -2993,55 +2993,56 @@ Functions.HandleCharacter = function(NewCharacter)
 	end
 
 	Globals.LastAutoCrouch = tick()
-	Globals.AutoCrouchActive = false
+	Globals.AutoCrouchCrouching = false
 
-	local function PressCrouchKey()
+	local function SendCrouchKeyDown()
 		Services.VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.C, false, game)
-		task.wait()
+	end
+
+	local function SendCrouchKeyUp()
 		Services.VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
 	end
 
-	Connections.AutoCrouch = Services.RunService.Heartbeat:Connect(function()
+	local AutoCrouchNames = { door=true, light=true, poster=true, posterframe=true, decal=true,GuiObject=true,part=true,handle=true,tool=true }
+
+	Connections.AutoCrouch = Services.RunService.Stepped:Connect(function()
 		if not Toggles.AutoCrouchToggle.Value or not Character or not RootPart then return end
 		if tick() - Globals.LastAutoCrouch < 0.05 then return end
 		Globals.LastAutoCrouch = tick()
 
-		if Humanoid.MoveDirection == Vector3.zero then
-			if Globals.AutoCrouchActive then
-				PressCrouchKey()
-				Globals.AutoCrouchActive = false
-			end
-			return
-		end
+		local humanoid = Character:FindFirstChild("Humanoid")
+		if not humanoid or humanoid.Health <= 0 then return end
+
+		local shouldCrouch = false
 
 		local rayParams = RaycastParams.new()
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
 		rayParams.FilterDescendantsInstances = { Character }
 
-		local forwardDir = RootPart.CFrame.LookVector
-		local origin = RootPart.Position
-		local distance = Options.AutoCrouchDistance.Value
+		local origin = RootPart.Position + Vector3.new(0, 0.5, 0)
+		local direction = RootPart.CFrame.LookVector * Options.AutoCrouchDistance.Value
+		local result = Services.Workspace:Raycast(origin, direction, rayParams)
 
-		local standingHit = Services.Workspace:Raycast(
-			origin + Vector3.new(0, 2.5, 0),
-			forwardDir * distance,
-			rayParams
-		)
+		if result then
+			local inst = result.Instance
+			local nameLower = inst.Name:lower()
 
-		local crouchingHit = Services.Workspace:Raycast(
-			origin + Vector3.new(0, 1.0, 0),
-			forwardDir * distance,
-			rayParams
-		)
+			if not inst:IsA("Terrain") and inst.Transparency < 0.5 then
+				if not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("decal") and not nameLower:find("hint") and not nameLower:find("sign") and not nameLower:find("label") and not nameLower:find("text") and not nameLower:find("prompt") then
+					local hitHeight = result.Position.Y - RootPart.Position.Y
+					if hitHeight > 0 and hitHeight < 3 then
+						shouldCrouch = true
+					end
+				end
+			end
+		end
 
-		local shouldCrouch = standingHit and not crouchingHit
-
-		if shouldCrouch and not Globals.AutoCrouchActive then
-			PressCrouchKey()
-			Globals.AutoCrouchActive = true
-		elseif not shouldCrouch and Globals.AutoCrouchActive then
-			PressCrouchKey()
-			Globals.AutoCrouchActive = false
+		if shouldCrouch and not Globals.AutoCrouchCrouching then
+			Globals.AutoCrouchCrouching = true
+			SendCrouchKeyDown()
+		elseif not shouldCrouch and Globals.AutoCrouchCrouching then
+			Globals.AutoCrouchCrouching = false
+			SendCrouchKeyUp()
 		end
 	end)
 
@@ -3053,9 +3054,9 @@ Functions.HandleCharacter = function(NewCharacter)
 				Body = "Make sure 'Toggle Crouch' is enabled in the game settings (press Tab to open settings panel). If it's off, the C key won't toggle crouch and Auto Crouch won't work correctly."
 			})
 		else
-			if Globals.AutoCrouchActive then
-				PressCrouchKey()
-				Globals.AutoCrouchActive = false
+			if Globals.AutoCrouchCrouching then
+				SendCrouchKeyUp()
+				Globals.AutoCrouchCrouching = false
 			end
 		end
 	end)
