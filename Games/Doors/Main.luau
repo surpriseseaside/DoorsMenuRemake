@@ -1840,95 +1840,54 @@ end)
 
 local NextDoorESPData = {
 	CurrentESPDoor = nil,
-	Highlight = nil,
-	Billboard = nil,
 	Connection = nil,
 }
 
 Functions.UpdateNextDoorESP = function()
-	if not Toggles.NextDoorESPToggle.Value then
-		if NextDoorESPData.Highlight and NextDoorESPData.Highlight.Parent then NextDoorESPData.Highlight:Destroy() end
-		NextDoorESPData.Highlight = nil
-		if NextDoorESPData.Billboard and NextDoorESPData.Billboard.Parent then NextDoorESPData.Billboard:Destroy() end
-		NextDoorESPData.Billboard = nil
-		NextDoorESPData.CurrentESPDoor = nil
-		return
-	end
+	if not Toggles.NextDoorESPToggle.Value then return end
 
 	local root = Character and Character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 
-	local closestDoor = nil
+	local closestRoom = nil
 	local closestDist = math.huge
 
-	for _, Object in Objects.Doors do
-		local doorPart
-		if Object:IsA("Model") then
-			doorPart = Object:FindFirstChild("HighlightPart") or Object.PrimaryPart or Object:FindFirstChildWhichIsA("BasePart", true)
-		elseif Object:IsA("BasePart") then
-			doorPart = Object
-		end
-		if doorPart then
-			local d = (root.Position - doorPart.Position).Magnitude
-			if d < closestDist then
-				closestDist = d
-				closestDoor = Object
+	for _, room in ipairs(CurrentRooms:GetChildren()) do
+		if room:IsA("Model") then
+			local success, cf = pcall(function()
+				return room:GetBoundingBox()
+			end)
+			if success and cf then
+				local d = (root.Position - cf.Position).Magnitude
+				if d < closestDist then
+					closestDist = d
+					closestRoom = room
+				end
 			end
+		end
+	end
+
+	if not closestRoom then return end
+
+	local closestDoor = nil
+	for _, Object in Objects.Doors do
+		local doorRoom = tonumber(Object:GetAttribute("ParentRoom"))
+		if doorRoom == tonumber(closestRoom.Name) then
+			closestDoor = Object
+			break
 		end
 	end
 
 	if closestDoor == NextDoorESPData.CurrentESPDoor then return end
 
-	if NextDoorESPData.Highlight and NextDoorESPData.Highlight.Parent then NextDoorESPData.Highlight:Destroy() end
-	NextDoorESPData.Highlight = nil
-	if NextDoorESPData.Billboard and NextDoorESPData.Billboard.Parent then NextDoorESPData.Billboard:Destroy() end
-	NextDoorESPData.Billboard = nil
-	NextDoorESPData.CurrentESPDoor = nil
-
-	if not closestDoor then return end
-
-	NextDoorESPData.CurrentESPDoor = closestDoor
-
-	local color = Options.NextDoorESPColor.Value
-
-	local h = Instance.new("Highlight")
-	h.Name = "NextDoor_ESP"
-	h.Adornee = closestDoor
-	h.FillColor = color
-	h.OutlineColor = color
-	h.FillTransparency = 0.45
-	h.OutlineTransparency = 0
-	h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	h.Parent = closestDoor
-	NextDoorESPData.Highlight = h
-
-	local mainPart
-	if closestDoor:IsA("Model") then
-		mainPart = closestDoor:FindFirstChild("HighlightPart") or closestDoor.PrimaryPart or closestDoor:FindFirstChildWhichIsA("BasePart", true)
-	elseif closestDoor:IsA("BasePart") then
-		mainPart = closestDoor
+	if NextDoorESPData.CurrentESPDoor then
+		Functions.RemoveESP(NextDoorESPData.CurrentESPDoor)
+		NextDoorESPData.CurrentESPDoor = nil
 	end
 
-	if mainPart then
-		local bb = Instance.new("BillboardGui")
-		bb.Name = "NextDoor_Label"
-		bb.Size = UDim2.new(0, 250, 0, 50)
-		bb.StudsOffset = Vector3.new(0, 4, 0)
-		bb.AlwaysOnTop = true
-		bb.Adornee = mainPart
-		bb.Parent = closestDoor
-		NextDoorESPData.Billboard = bb
-
-		local tl = Instance.new("TextLabel")
-		tl.BackgroundTransparency = 1
-		tl.Size = UDim2.fromScale(1, 1)
-		tl.Font = Enum.Font.GothamBold
-		tl.TextScaled = true
-		tl.TextColor3 = color
-		tl.TextStrokeTransparency = 0
-		tl.TextStrokeColor3 = Color3.new(0, 0, 0)
-		tl.Text = string.format("Next Door [%s]", Functions.GetDoorNumber(closestDoor))
-		tl.Parent = bb
+	if closestDoor then
+		NextDoorESPData.CurrentESPDoor = closestDoor
+		Functions.AddESP({ Object = closestDoor, Text = "Next Door [" .. Functions.GetDoorNumber(closestDoor) .. "]", Color = Options.NextDoorESPColor.Value })
 	end
 end
 
@@ -1944,21 +1903,15 @@ Toggles.NextDoorESPToggle:OnChanged(function(Value)
 			NextDoorESPData.Connection:Disconnect()
 			NextDoorESPData.Connection = nil
 		end
-		if NextDoorESPData.Highlight and NextDoorESPData.Highlight.Parent then NextDoorESPData.Highlight:Destroy() end
-		NextDoorESPData.Highlight = nil
-		if NextDoorESPData.Billboard and NextDoorESPData.Billboard.Parent then NextDoorESPData.Billboard:Destroy() end
-		NextDoorESPData.Billboard = nil
-		NextDoorESPData.CurrentESPDoor = nil
+		if NextDoorESPData.CurrentESPDoor then
+			Functions.RemoveESP(NextDoorESPData.CurrentESPDoor)
+			NextDoorESPData.CurrentESPDoor = nil
+		end
 	end
 end)
 Options.NextDoorESPColor:OnChanged(function(Value)
-	if NextDoorESPData.Highlight then
-		NextDoorESPData.Highlight.FillColor = Value
-		NextDoorESPData.Highlight.OutlineColor = Value
-	end
-	if NextDoorESPData.Billboard then
-		local tl = NextDoorESPData.Billboard:FindFirstChildOfClass("TextLabel")
-		if tl then tl.TextColor3 = Value end
+	if NextDoorESPData.CurrentESPDoor then
+		DoorsMenuRemake.ESPLibrary:UpdateObjectColor(NextDoorESPData.CurrentESPDoor, Value)
 	end
 end)
 
