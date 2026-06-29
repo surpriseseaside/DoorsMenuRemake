@@ -2993,7 +2993,7 @@ Functions.HandleCharacter = function(NewCharacter)
 	end
 
 	Globals.LastAutoCrouch = tick()
-	Globals.AutoCrouchCrouching = false
+	Globals.AutoCrouchIsCrouching = false
 
 	local function SendCrouchKeyDown()
 		pcall(function()
@@ -3007,55 +3007,64 @@ Functions.HandleCharacter = function(NewCharacter)
 		end)
 	end
 
-	local function DoCrouch()
-		if Globals.AutoCrouchCrouching then return end
-		Globals.AutoCrouchCrouching = true
+	local function Crouch()
+		if Globals.AutoCrouchIsCrouching then return end
+		Globals.AutoCrouchIsCrouching = true
 		SendCrouchKeyDown()
 	end
 
-	local function DoUncrouch()
-		if not Globals.AutoCrouchCrouching then return end
-		Globals.AutoCrouchCrouching = false
+	local function Uncrouch()
+		if not Globals.AutoCrouchIsCrouching then return end
+		Globals.AutoCrouchIsCrouching = false
 		SendCrouchKeyUp()
 	end
 
+	Connections.AutoCrouchRespawn = LocalPlayer.CharacterAdded:Connect(function()
+		Globals.AutoCrouchIsCrouching = false
+	end)
+	table.insert(Connections, Connections.AutoCrouchRespawn)
+
 	Connections.AutoCrouch = Services.RunService.Stepped:Connect(function()
-		if not Toggles.AutoCrouchToggle.Value or not Character or not RootPart then return end
-		if tick() - Globals.LastAutoCrouch < 0.05 then return end
-		Globals.LastAutoCrouch = tick()
+		if not Toggles.AutoCrouchToggle.Value then
+			Uncrouch()
+			return
+		end
+		if not Character or not RootPart then return end
 
 		local humanoid = Character:FindFirstChild("Humanoid")
 		if not humanoid or humanoid.Health <= 0 then return end
 
+		if tick() - Globals.LastAutoCrouch < 0.05 then return end
+		Globals.LastAutoCrouch = tick()
+
 		if Humanoid.MoveDirection == Vector3.zero then
-			DoUncrouch()
+			Uncrouch()
 			return
 		end
 
 		local shouldCrouch = false
-
-		local rayParams = RaycastParams.new()
-		rayParams.FilterType = Enum.RaycastFilterType.Exclude
-		rayParams.FilterDescendantsInstances = { Character }
+		local params = RaycastParams.new()
+		params.FilterDescendantsInstances = { Character }
+		params.FilterType = Enum.RaycastFilterType.Exclude
 
 		local forward = RootPart.CFrame.LookVector * Options.AutoCrouchDistance.Value
 
-		local highHit = Services.Workspace:Raycast(
+		local highResult = Services.Workspace:Raycast(
 			RootPart.Position + Vector3.new(0, 4, 0),
 			forward,
-			rayParams
+			params
 		)
 
-		local lowHit = Services.Workspace:Raycast(
+		local lowResult = Services.Workspace:Raycast(
 			RootPart.Position + Vector3.new(0, 1.5, 0),
 			forward,
-			rayParams
+			params
 		)
 
-		if highHit and not lowHit then
-			local inst = highHit.Instance
+		if highResult and not lowResult then
+			local inst = highResult.Instance
+			local nameLower = inst.Name:lower()
 			if not inst:IsA("Terrain") and inst.Transparency < 0.5 then
-				local nameLower = inst.Name:lower()
 				if not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("decal") and not nameLower:find("hint") and not nameLower:find("sign") and not nameLower:find("prompt") then
 					shouldCrouch = true
 				end
@@ -3063,9 +3072,9 @@ Functions.HandleCharacter = function(NewCharacter)
 		end
 
 		if shouldCrouch then
-			DoCrouch()
+			Crouch()
 		else
-			DoUncrouch()
+			Uncrouch()
 		end
 	end)
 
@@ -3077,7 +3086,7 @@ Functions.HandleCharacter = function(NewCharacter)
 				Body = "Make sure 'Toggle Crouch' is enabled in the game settings (press Tab to open settings panel). If it's off, the C key won't toggle crouch and Auto Crouch won't work correctly."
 			})
 		else
-			DoUncrouch()
+			Uncrouch()
 		end
 	end)
 
