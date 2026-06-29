@@ -2995,8 +2995,16 @@ Functions.HandleCharacter = function(NewCharacter)
 	Globals.LastAutoCrouch = tick()
 	Globals.AutoCrouchCrouching = false
 
-	local function PressCrouchKey()
+	local function DoCrouch()
+		if Globals.AutoCrouchCrouching then return end
+		Globals.AutoCrouchCrouching = true
 		Services.VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.C, false, game)
+	end
+
+	local function DoUncrouch()
+		if not Globals.AutoCrouchCrouching then return end
+		Globals.AutoCrouchCrouching = false
+		Services.VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
 	end
 
 	Connections.AutoCrouch = Services.RunService.Stepped:Connect(function()
@@ -3008,10 +3016,7 @@ Functions.HandleCharacter = function(NewCharacter)
 		if not humanoid or humanoid.Health <= 0 then return end
 
 		if Humanoid.MoveDirection == Vector3.zero then
-			if Globals.AutoCrouchCrouching then
-				PressCrouchKey()
-				Globals.AutoCrouchCrouching = false
-			end
+			DoUncrouch()
 			return
 		end
 
@@ -3045,12 +3050,10 @@ Functions.HandleCharacter = function(NewCharacter)
 			end
 		end
 
-		if shouldCrouch and not Globals.AutoCrouchCrouching then
-			Globals.AutoCrouchCrouching = true
-			PressCrouchKey()
-		elseif not shouldCrouch and Globals.AutoCrouchCrouching then
-			Globals.AutoCrouchCrouching = false
-			PressCrouchKey()
+		if shouldCrouch then
+			DoCrouch()
+		else
+			DoUncrouch()
 		end
 	end)
 
@@ -3062,10 +3065,7 @@ Functions.HandleCharacter = function(NewCharacter)
 				Body = "Make sure 'Toggle Crouch' is enabled in the game settings (press Tab to open settings panel). If it's off, the C key won't toggle crouch and Auto Crouch won't work correctly."
 			})
 		else
-			if Globals.AutoCrouchCrouching then
-				PressCrouchKey()
-				Globals.AutoCrouchCrouching = false
-			end
+			DoUncrouch()
 		end
 	end)
 
