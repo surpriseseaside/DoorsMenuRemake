@@ -3007,11 +3007,6 @@ Functions.HandleCharacter = function(NewCharacter)
 		local humanoid = Character:FindFirstChild("Humanoid")
 		if not humanoid or humanoid.Health <= 0 then return end
 
-		local actualCrouch = Character:GetAttribute("Crouching") == true
-		if actualCrouch ~= Globals.AutoCrouchCrouching then
-			Globals.AutoCrouchCrouching = actualCrouch
-		end
-
 		if Humanoid.MoveDirection == Vector3.zero then
 			if Globals.AutoCrouchCrouching then
 				PressCrouchKey()
