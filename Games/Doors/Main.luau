@@ -1604,51 +1604,17 @@ Toggles.RemoveShaders:OnChanged(function(Value)
 		Globals.OldBrightness = Services.Lighting.Brightness
 		Globals.OldClockTime = Services.Lighting.ClockTime
 		Globals.OldGlobalShadows = Services.Lighting.GlobalShadows
-		Globals.OldOutdoorAmbient = Services.Lighting.OutdoorAmbient
-		Globals.OldEnvDiffuse = Services.Lighting.EnvironmentDiffuseScale
-		Globals.OldEnvSpecular = Services.Lighting.EnvironmentSpecularScale
-		Globals.OldShadowSoftness = Services.Lighting.ShadowSoftness
 
 		Services.Lighting.Brightness = 2
 		Services.Lighting.ClockTime = 14
 		Services.Lighting.GlobalShadows = false
-		Services.Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-		Services.Lighting.EnvironmentDiffuseScale = 1
-		Services.Lighting.EnvironmentSpecularScale = 1
-		Services.Lighting.ShadowSoftness = 0
 	else
 		if Globals.OldBrightness ~= nil then Services.Lighting.Brightness = Globals.OldBrightness end
 		if Globals.OldClockTime ~= nil then Services.Lighting.ClockTime = Globals.OldClockTime end
 		if Globals.OldGlobalShadows ~= nil then Services.Lighting.GlobalShadows = Globals.OldGlobalShadows end
-		if Globals.OldOutdoorAmbient ~= nil then Services.Lighting.OutdoorAmbient = Globals.OldOutdoorAmbient end
-		if Globals.OldEnvDiffuse ~= nil then Services.Lighting.EnvironmentDiffuseScale = Globals.OldEnvDiffuse end
-		if Globals.OldEnvSpecular ~= nil then Services.Lighting.EnvironmentSpecularScale = Globals.OldEnvSpecular end
-		if Globals.OldShadowSoftness ~= nil then Services.Lighting.ShadowSoftness = Globals.OldShadowSoftness end
 		Globals.OldBrightness = nil
 		Globals.OldClockTime = nil
 		Globals.OldGlobalShadows = nil
-		Globals.OldOutdoorAmbient = nil
-		Globals.OldEnvDiffuse = nil
-		Globals.OldEnvSpecular = nil
-		Globals.OldShadowSoftness = nil
-	end
-
-	for _, Object in Services.Lighting:GetChildren() do
-		if Object:IsA("Atmosphere") then
-			if Value then
-				Object:SetAttribute("RemoveShaders_Density_Old", Object.Density)
-				Object.Density = 0
-			else
-				local Old = Object:GetAttribute("RemoveShaders_Density_Old")
-				if Old then
-					Object.Density = Old
-					Object:SetAttribute("RemoveShaders_Density_Old", nil)
-				end
-			end
-		end
-		if Object:IsA("BloomEffect") or Object:IsA("BlurEffect") or Object:IsA("ColorCorrectionEffect") or Object:IsA("SunRaysEffect") then
-			Object.Enabled = not Value
-		end
 	end
 end)
 Toggles.RemoveCutscenes:OnChanged(function(Value)
