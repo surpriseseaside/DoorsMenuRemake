@@ -3003,6 +3003,13 @@ Functions.HandleCharacter = function(NewCharacter)
 		Services.VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
 	end
 
+	local AutoCrouchBlacklist = {
+		door = true, light = true, poster = true, decal = true,
+		hint = true, sign = true, label = true, text = true,
+		prompt = true, collision = true, floor = true, ground = true,
+		ceiling = true,床 = true,床头 = true,
+	}
+
 	Connections.AutoCrouch = Services.RunService.Stepped:Connect(function()
 		if not Toggles.AutoCrouchToggle.Value or not Character or not RootPart then return end
 		if tick() - Globals.LastAutoCrouch < 0.05 then return end
@@ -3019,30 +3026,44 @@ Functions.HandleCharacter = function(NewCharacter)
 			return
 		end
 
-		local shouldCrouch = false
-
 		local rayParams = RaycastParams.new()
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
 		rayParams.FilterDescendantsInstances = { Character }
 
-		local origin = RootPart.Position + Vector3.new(0, 0.5, 0)
-		local direction = RootPart.CFrame.LookVector * Options.AutoCrouchDistance.Value
-		local result = Services.Workspace:Raycast(origin, direction, rayParams)
+		local feetPos = RootPart.Position - Vector3.new(0, 3, 0)
+		local lookDir = RootPart.CFrame.LookVector
+		local dist = Options.AutoCrouchDistance.Value
 
-		if result then
-			local inst = result.Instance
-			local nameLower = inst.Name:lower()
-			local hitDist = (result.Position - origin).Magnitude
+		local highOrigin = feetPos + Vector3.new(0, 4.5, 0)
+		local lowOrigin = feetPos + Vector3.new(0, 2.0, 0)
 
-			if hitDist > 1.5 and not inst:IsA("Terrain") and inst.Transparency < 0.5 then
-				if not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("decal") and not nameLower:find("hint") and not nameLower:find("sign") and not nameLower:find("label") and not nameLower:find("text") and not nameLower:find("prompt") and not nameLower:find("collision") and not nameLower:find("floor") and not nameLower:find("wall") and not nameLower:find("ceiling") and not nameLower:find("ground") then
-					local hitHeight = result.Position.Y - RootPart.Position.Y
-					if hitHeight > 0.5 and hitHeight < 3 then
-						shouldCrouch = true
-					end
+		local highResult = Services.Workspace:Raycast(highOrigin, lookDir * dist, rayParams)
+		local lowResult = Services.Workspace:Raycast(lowOrigin, lookDir * dist, rayParams)
+
+		local highBlocked = false
+		local lowBlocked = false
+
+		if highResult then
+			local inst = highResult.Instance
+			if not inst:IsA("Terrain") and inst.Transparency < 0.5 then
+				local nameLower = inst.Name:lower()
+				if not AutoCrouchBlacklist[nameLower] and not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("sign") then
+					highBlocked = true
 				end
 			end
 		end
+
+		if lowResult then
+			local inst = lowResult.Instance
+			if not inst:IsA("Terrain") and inst.Transparency < 0.5 then
+				local nameLower = inst.Name:lower()
+				if not AutoCrouchBlacklist[nameLower] and not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("sign") then
+					lowBlocked = true
+				end
+			end
+		end
+
+		local shouldCrouch = highBlocked and not lowBlocked
 
 		if shouldCrouch and not Globals.AutoCrouchCrouching then
 			Globals.AutoCrouchCrouching = true
