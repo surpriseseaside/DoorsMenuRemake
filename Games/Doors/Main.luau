@@ -1217,6 +1217,15 @@ Groupboxes.Self_Automation:AddDropdown("SpecateEntityMode", {
 	Default = 1,
 	AllowNull = true
 })
+Groupboxes.Self_Automation:AddToggle("AutoCrouchToggle", {
+	Text = "Auto Crouch",
+	Default = false,
+	Tooltip = "Automatically crouches under low obstructions and stands back up after passing."
+})
+
+Groupboxes.Self_Automation:AddSlider("AutoCrouchDistance", {
+	Text = "Detection Distance", Min = 2, Max = 12, Default = 5, Rounding = 0, Compact = true
+})
 
 Groupboxes.Self_Misc = Tabs.General:AddRightGroupbox("Miscellaneous")
 Groupboxes.Self_Misc:AddButton({
@@ -2982,6 +2991,43 @@ Functions.HandleCharacter = function(NewCharacter)
 			end
 		end)
 	end
+
+	Globals.LastAutoCrouch = tick()
+	Connections.AutoCrouch = Services.RunService.Heartbeat:Connect(function()
+		if not Toggles.AutoCrouchToggle.Value or not Character or not RootPart or not CollisionPart then return end
+		if tick() - Globals.LastAutoCrouch < 0.05 then return end
+		Globals.LastAutoCrouch = tick()
+
+		if Humanoid.MoveDirection == Vector3.zero then return end
+
+		local rayParams = RaycastParams.new()
+		rayParams.FilterType = Enum.RaycastFilterType.Exclude
+		rayParams.FilterDescendantsInstances = { Character }
+
+		local forwardDir = RootPart.CFrame.LookVector
+		local origin = RootPart.Position
+		local distance = Options.AutoCrouchDistance.Value
+
+		local standingHit = Services.Workspace:Raycast(
+			origin + Vector3.new(0, 2.5, 0),
+			forwardDir * distance,
+			rayParams
+		)
+
+		local crouchingHit = Services.Workspace:Raycast(
+			origin + Vector3.new(0, 1.0, 0),
+			forwardDir * distance,
+			rayParams
+		)
+
+		local shouldCrouch = standingHit and not crouchingHit
+
+		if shouldCrouch and not Functions.IsCrouching() then
+			RemotesFolder.Crouch:FireServer(true, true)
+		elseif not shouldCrouch and Functions.IsCrouching() and not Toggles.CrouchSpoof.Value and not Toggles.PositionSpoof.Value then
+			RemotesFolder.Crouch:FireServer(false, true)
+		end
+	end)
 
 	Globals.SpoofOffset = 0
 	Globals.LastAutoHide = tick()
