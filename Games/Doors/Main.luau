@@ -1695,16 +1695,84 @@ Groupboxes.Visuals_HUDTab  = Tabs.Visuals:AddLeftTabbox("HUD")
 Groupboxes.Visuals_HUD     = Groupboxes.Visuals_HUDTab:AddTab("HUD")
 
 Groupboxes.Visuals_HUD:AddToggle("ShowActualRoomToggle", { Text = "Show Actual Room", Default = false, Tooltip = "Displays the current room number on screen." })
-Groupboxes.Visuals_HUD:AddToggle("ShowStatisticsToggle", { Text = "Show Statistics", Default = false, Tooltip = "Displays FPS, Ping, Memory stats on screen." })
-Groupboxes.Visuals_HUD:AddToggle("ShowSpawnedEntitiesToggle", { Text = "Show Spawned Entities", Default = false, Tooltip = "Displays a list of nearby entities with distance." })
+Groupboxes.Visuals_HUD:AddToggle("ShowStatisticsToggle", { Text = "Show Statistics", Default = false, Tooltip = "Displays FPS, Ping, Memory, CPU and GPU stats on screen." })
+Groupboxes.Visuals_HUD:AddToggle("ShowSpawnedEntitiesToggle", { Text = "Show Spawned Entities", Default = false, Tooltip = "Displays a list of nearby entities with distance and data." })
 Groupboxes.Visuals_HUD:AddSlider("HUDOpacity", { Text = "HUD Opacity", Min = 0.1, Max = 1, Default = 0.7, Rounding = 2, Compact = true })
 Groupboxes.Visuals_HUD:AddSlider("HUDTextSize", { Text = "Text Size", Min = 10, Max = 18, Default = 13, Rounding = 0, Compact = true })
 
+local function CreateHUDFrame()
+	local sg = Instance.new("ScreenGui")
+	sg.Name = "DoorsMenuRemake_HUD"
+	sg.ResetOnSpawn = false
+	sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	sg.DisplayOrder = 32766
+	sg.Parent = GetHiddenContainer()
+
+	local frame = Instance.new("Frame")
+	frame.Name = "HUDFrame"
+	frame.AnchorPoint = Vector2.new(0, 0)
+	frame.Position = UDim2.new(0, 10, 0.35, 0)
+	frame.Size = UDim2.new(0, 220, 0, 30)
+	frame.BackgroundColor3 = Color3.new(0, 0, 0)
+	frame.BackgroundTransparency = 0.3
+	frame.BorderSizePixel = 0
+	frame.Parent = sg
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
+
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Vertical
+	layout.Padding = UDim.new(0, 4)
+	layout.Parent = frame
+
+	local roomLabel = Instance.new("TextLabel")
+	roomLabel.Name = "RoomLabel"
+	roomLabel.Size = UDim2.new(1, -8, 0, 20)
+	roomLabel.Position = UDim2.new(0, 4, 0, 2)
+	roomLabel.BackgroundTransparency = 1
+	roomLabel.Font = Enum.Font.GothamBold
+	roomLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	roomLabel.TextXAlignment = Enum.TextXAlignment.Left
+	roomLabel.Text = ""
+	roomLabel.Parent = frame
+
+	local statsLabel = Instance.new("TextLabel")
+	statsLabel.Name = "StatsLabel"
+	statsLabel.Size = UDim2.new(1, -8, 0, 0)
+	statsLabel.AutomaticSize = Enum.AutomaticSize.Y
+	statsLabel.BackgroundTransparency = 1
+	statsLabel.Font = Enum.Font.Code
+	statsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	statsLabel.TextYAlignment = Enum.TextYAlignment.Top
+	statsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	statsLabel.TextWrapped = true
+	statsLabel.Text = ""
+	statsLabel.Visible = false
+	statsLabel.Parent = frame
+
+	local entitiesLabel = Instance.new("TextLabel")
+	entitiesLabel.Name = "EntitiesLabel"
+	entitiesLabel.Size = UDim2.new(1, -8, 0, 0)
+	entitiesLabel.AutomaticSize = Enum.AutomaticSize.Y
+	entitiesLabel.BackgroundTransparency = 1
+	entitiesLabel.Font = Enum.Font.Code
+	entitiesLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+	entitiesLabel.TextYAlignment = Enum.TextYAlignment.Top
+	entitiesLabel.TextXAlignment = Enum.TextXAlignment.Left
+	entitiesLabel.TextWrapped = true
+	entitiesLabel.Text = ""
+	entitiesLabel.Visible = false
+	entitiesLabel.Parent = frame
+
+	return sg, frame
+end
+
+pcall(function()
+	Globals.HUDScreen, Globals.HUDFrame = CreateHUDFrame()
+end)
+Globals.HUDLastUpdate = 0
 Globals.HUDFPS = 60
 Globals.HUDFPSCount = 0
 Globals.HUDFPSLast = tick()
-Globals.HUDScreen = nil
-Globals.HUDFrame = nil
 
 pcall(function()
 	Connections.HUDFPSCounter = Services.RunService.RenderStepped:Connect(function()
@@ -1717,112 +1785,28 @@ pcall(function()
 	end)
 end)
 
-pcall(function()
-	Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
-		if not Toggles.ShowActualRoomToggle.Value and not Toggles.ShowStatisticsToggle.Value and not Toggles.ShowSpawnedEntitiesToggle.Value then
-			if Globals.HUDScreen then Globals.HUDScreen.Enabled = false end
-			return
+Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
+	pcall(function()
+		if tick() - Globals.HUDLastUpdate < 0.25 then return end
+		Globals.HUDLastUpdate = tick()
+
+		if not Globals.HUDFrame or not Globals.HUDFrame.Parent then return end
+
+		local opacity = Options.HUDOpacity.Value
+		local textSize = Options.HUDTextSize.Value
+		local roomLabel = Globals.HUDFrame:FindFirstChild("RoomLabel")
+		local statsLabel = Globals.HUDFrame:FindFirstChild("StatsLabel")
+		local entitiesLabel = Globals.HUDFrame:FindFirstChild("EntitiesLabel")
+
+		local accentColor = Color3.fromRGB(0, 200, 255)
+		pcall(function() accentColor = Library.Scheme.AccentColor end)
+
+		if roomLabel then
+			roomLabel.TextSize = textSize
+			roomLabel.TextColor3 = accentColor
 		end
-
-		if not Globals.HUDFrame then
-			local scheme = {}
-			pcall(function()
-				scheme.BG = Library.Scheme.BackgroundColor or Color3.fromRGB(20, 20, 20)
-				scheme.Accent = Library.Scheme.AccentColor or Color3.fromRGB(0, 85, 255)
-				scheme.Font = Library.Scheme.FontColor or Color3.fromRGB(255, 255, 255)
-				scheme.Outline = Library.Scheme.OutlineColor or Color3.fromRGB(50, 50, 50)
-			end)
-			if not scheme.BG then scheme.BG = Color3.fromRGB(20, 20, 20) end
-			if not scheme.Accent then scheme.Accent = Color3.fromRGB(0, 85, 255) end
-			if not scheme.Font then scheme.Font = Color3.fromRGB(255, 255, 255) end
-			if not scheme.Outline then scheme.Outline = Color3.fromRGB(50, 50, 50) end
-
-			local sg = Instance.new("ScreenGui")
-			sg.Name = "DoorsMenuRemake_HUD"
-			sg.ResetOnSpawn = false
-			sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-			sg.DisplayOrder = 32766
-			sg.Parent = GetHiddenContainer()
-
-			local f = Instance.new("Frame")
-			f.Name = "HUDFrame"
-			f.AnchorPoint = Vector2.new(0, 0.5)
-			f.Position = UDim2.new(0, 12, 0.4, 0)
-			f.Size = UDim2.new(0, 220, 0, 50)
-			f.BackgroundColor3 = scheme.BG
-			f.BackgroundTransparency = 0.15
-			f.BorderSizePixel = 0
-			f.Parent = sg
-			Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
-
-			local st = Instance.new("UIStroke")
-			st.Color = scheme.Outline
-			st.Thickness = 1
-			st.Transparency = 0.2
-			st.Parent = f
-
-			local pd = Instance.new("UIPadding")
-			pd.PaddingTop = UDim.new(0, 8)
-			pd.PaddingBottom = UDim.new(0, 8)
-			pd.PaddingLeft = UDim.new(0, 10)
-			pd.PaddingRight = UDim.new(0, 10)
-			pd.Parent = f
-
-			local ls = Instance.new("UIListLayout")
-			ls.FillDirection = Enum.FillDirection.Vertical
-			ls.Padding = UDim.new(0, 2)
-			ls.SortOrder = Enum.SortOrder.LayoutOrder
-			ls.Parent = f
-
-			local function addLabel(name, order, color, textsize)
-				local l = Instance.new("TextLabel")
-				l.Name = name
-				l.Size = UDim2.new(1, 0, 0, 0)
-				l.AutomaticSize = Enum.AutomaticSize.Y
-				l.BackgroundTransparency = 1
-				l.Font = Enum.Font.Gotham
-				l.TextSize = textsize or 12
-				l.TextColor3 = color or scheme.Font
-				l.TextXAlignment = Enum.TextXAlignment.Left
-				l.TextWrapped = true
-				l.Text = ""
-				l.LayoutOrder = order
-				l.Visible = false
-				l.Parent = f
-				return l
-			end
-
-			local function addDivider(order)
-				local d = Instance.new("Frame")
-				d.Size = UDim2.new(1, 0, 0, 1)
-				d.BackgroundColor3 = scheme.Outline
-				d.BackgroundTransparency = 0.5
-				d.BorderSizePixel = 0
-				d.LayoutOrder = order
-				d.Visible = false
-				d.Parent = f
-				return d
-			end
-
-			Globals.HUDRoomLabel = addLabel("RoomLabel", 2, scheme.Accent, 14)
-			Globals.HUDRoomDivider = addDivider(3)
-			Globals.HUDStatsLabel = addLabel("StatsLabel", 12, scheme.Accent, 14)
-			Globals.HUDStatsDivider = addDivider(13)
-			Globals.HUDStatsValue = addLabel("StatsValue", 14, scheme.Font, 11)
-			Globals.HEntityLabel = addLabel("EntityLabel", 22, scheme.Accent, 14)
-			Globals.HEntityDivider = addDivider(23)
-			Globals.HEntityValue = addLabel("EntityValue", 24, scheme.Font, 11)
-
-			Globals.HUDScreen = sg
-			Globals.HUDFrame = f
-		end
-
-		Globals.HUDScreen.Enabled = true
-
-		local opacity = 0.7
-		pcall(function() opacity = Options.HUDOpacity.Value end)
-		local textSize = 13
-		pcall(function() textSize = Options.HUDTextSize.Value end)
+		if statsLabel then statsLabel.TextSize = textSize - 2 end
+		if entitiesLabel then entitiesLabel.TextSize = textSize - 2 end
 
 		Globals.HUDFrame.BackgroundTransparency = 1 - opacity
 
@@ -1830,60 +1814,51 @@ pcall(function()
 		local showStats = Toggles.ShowStatisticsToggle.Value
 		local showEntities = Toggles.ShowSpawnedEntitiesToggle.Value
 
-		if Globals.HUDRoomLabel then
-			Globals.HUDRoomLabel.Visible = showRoom
-			Globals.HUDRoomLabel.TextSize = textSize
+		if roomLabel then
+			roomLabel.Visible = showRoom
 			if showRoom then
-				local cr = LocalPlayer:GetAttribute("CurrentRoom")
-				Globals.HUDRoomLabel.Text = tostring(cr or "?")
+				local currentRoom = LocalPlayer:GetAttribute("CurrentRoom")
+				roomLabel.Text = "Room: " .. (currentRoom and tostring(currentRoom) or "?")
 			end
 		end
-		if Globals.HUDRoomDivider then Globals.HUDRoomDivider.Visible = showRoom end
 
-		if Globals.HUDStatsLabel then
-			Globals.HUDStatsLabel.Visible = showStats
-			Globals.HUDStatsLabel.TextSize = textSize
-		end
-		if Globals.HUDStatsDivider then Globals.HUDStatsDivider.Visible = showStats end
-		if Globals.HUDStatsValue then
-			Globals.HUDStatsValue.Visible = showStats
-			Globals.HUDStatsValue.TextSize = textSize - 2
+		if statsLabel then
+			statsLabel.Visible = showStats
 			if showStats then
 				local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
 				local mem = math.floor(collectgarbage("count"))
-				Globals.HUDStatsValue.Text = string.format("FPS: %d  |  Ping: %dms\nMemory: %dMB", Globals.HUDFPS, ping, mem)
+				statsLabel.Text = string.format(
+					"FPS: %d | Ping: %dms\nMemory: %dMB",
+					Globals.HUDFPS, ping, mem
+				)
 			end
 		end
 
-		if Globals.HEntityLabel then
-			Globals.HEntityLabel.Visible = showEntities
-			Globals.HEntityLabel.TextSize = textSize
-		end
-		if Globals.HEntityDivider then Globals.HEntityDivider.Visible = showEntities end
-		if Globals.HEntityValue then
-			Globals.HEntityValue.Visible = showEntities
-			Globals.HEntityValue.TextSize = textSize - 2
+		if entitiesLabel then
+			entitiesLabel.Visible = showEntities
 			if showEntities then
 				local lines = {}
-				for _, E in Services.Workspace:GetChildren() do
-					local ed = Entities[E.Name]
-					if ed and E.PrimaryPart then
-						local ok, d = pcall(function()
-							return math.floor(LocalPlayer:DistanceFromCharacter(E.PrimaryPart.Position))
+				for _, Entity in Services.Workspace:GetChildren() do
+					local entityData = Entities[Entity.Name]
+					if entityData and Entity.PrimaryPart then
+						local success, dist = pcall(function()
+							return math.floor(LocalPlayer:DistanceFromCharacter(Entity.PrimaryPart.Position))
 						end)
-						if ok then table.insert(lines, string.format("%s  [%dm]", ed.Alias, d)) end
+						if success then
+							table.insert(lines, string.format("%s [%dm]", entityData.Alias, dist))
+						end
 					end
 				end
-				Globals.HEntityValue.Text = #lines > 0 and table.concat(lines, "\n") or "None"
+				entitiesLabel.Text = #lines > 0 and table.concat(lines, "\n") or "None"
 			end
 		end
 
-		local h = 16
-		if showRoom then h = h + 20 end
-		if showStats and Globals.HUDStatsValue then h = h + 18 + Globals.HUDStatsValue.TextBounds.Y end
-		if showEntities and Globals.HEntityValue then h = h + 18 + Globals.HEntityValue.TextBounds.Y end
-		if h < 44 then h = 44 end
-		Globals.HUDFrame.Size = UDim2.new(0, 220, 0, h)
+		local totalHeight = 8
+		if showRoom then totalHeight = totalHeight + 22 end
+		if statsLabel and showStats then totalHeight = totalHeight + statsLabel.TextBounds.Y + 6 end
+		if entitiesLabel and showEntities then totalHeight = totalHeight + entitiesLabel.TextBounds.Y + 6 end
+		if totalHeight < 30 then totalHeight = 30 end
+		Globals.HUDFrame.Size = UDim2.new(0, 220, 0, totalHeight)
 	end)
 end)
 
@@ -3187,6 +3162,157 @@ Functions.HandleCharacter = function(NewCharacter)
 			end
 		end)
 	end
+
+	local AutoCrouch = {}
+	AutoCrouch.Connection = nil
+	AutoCrouch.RespawnConn = nil
+	AutoCrouch.IsCrouching = false
+
+	function AutoCrouch:SendCrouchKeyDown()
+		pcall(function()
+			game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.C, false, game)
+		end)
+	end
+
+	function AutoCrouch:SendCrouchKeyUp()
+		pcall(function()
+			game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.C, false, game)
+		end)
+	end
+
+	function AutoCrouch:Crouch()
+		if self.IsCrouching then return end
+		self.IsCrouching = true
+		self:SendCrouchKeyDown()
+	end
+
+	function AutoCrouch:Uncrouch()
+		if not self.IsCrouching then return end
+		self.IsCrouching = false
+		self:SendCrouchKeyUp()
+	end
+
+	local IgnoreNames = {
+		door = true, light = true, poster = true, decal = true,
+		hint = true, sign = true, prompt = true, glass = true,
+		window = true, carpet = true, rug = true, painting = true,
+		picture = true, candle = true, curtain = true, banner = true,
+		effect = true, particle = true, attachment = true, trail = true,
+	}
+
+	local function IsObstruction(instance)
+		if instance:IsA("Terrain") then return false end
+		if instance.Transparency >= 0.5 then return false end
+		if not instance:IsA("BasePart") then return false end
+
+		local nameLower = instance.Name:lower()
+		for pattern in pairs(IgnoreNames) do
+			if nameLower:find(pattern) then
+				return false
+			end
+		end
+
+		return true
+	end
+
+	function AutoCrouch:Enable()
+		if self.Connection then return end
+		self.IsCrouching = false
+		self.Connection = Services.RunService.Stepped:Connect(function()
+			if not Toggles.AutoCrouchToggle.Value then
+				self:Uncrouch()
+				return
+			end
+			local character = LocalPlayer.Character
+			if not character then return end
+			local hrp = character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character:FindFirstChild("Humanoid")
+			if not hrp or not humanoid or humanoid.Health <= 0 then return end
+
+			if humanoid.MoveDirection == Vector3.zero then
+				self:Uncrouch()
+				return
+			end
+
+			local shouldCrouch = false
+			local detectDist = Options.AutoCrouchDistance.Value
+			local hrpPos = hrp.Position
+			local lookVector = hrp.CFrame.LookVector
+			local params = RaycastParams.new()
+			params.FilterDescendantsInstances = { character }
+			params.FilterType = Enum.RaycastFilterType.Exclude
+
+			local fwd = lookVector * detectDist
+
+			-- FORWARD CHECK: detect overhead obstructions ahead
+			local forwardOrigin = hrpPos + Vector3.new(0, 0.75, 0)
+			local forwardResult = workspace:Raycast(forwardOrigin, fwd, params)
+
+			if forwardResult and IsObstruction(forwardResult.Instance) then
+				local hitHeight = forwardResult.Position.Y - hrpPos.Y
+				if hitHeight > 0.2 and hitHeight < 3.5 then
+					local downOrigin = forwardResult.Position + forwardResult.Normal * 0.1
+					local downResult = workspace:Raycast(downOrigin, Vector3.new(0, -2, 0), params)
+					local isSolidWall = downResult and downResult.Instance == forwardResult.Instance
+					if not isSolidWall then
+						shouldCrouch = true
+					end
+				end
+			end
+
+			-- UPWARD CHECK: while already crouching, verify there is still
+			-- something above the head before uncrouching
+			if not shouldCrouch and self.IsCrouching then
+				local head = character:FindFirstChild("Head")
+				if head then
+					local upResult = workspace:Raycast(
+						head.Position + Vector3.new(0, 0.1, 0),
+						Vector3.new(0, 3, 0),
+						params
+					)
+					if upResult and (upResult.Position.Y - head.Position.Y < 2.5) then
+						shouldCrouch = true
+					end
+				end
+			end
+
+			if shouldCrouch then
+				self:Crouch()
+			else
+				self:Uncrouch()
+			end
+		end)
+		if not self.RespawnConn then
+			self.RespawnConn = LocalPlayer.CharacterAdded:Connect(function()
+				self.IsCrouching = false
+			end)
+		end
+	end
+
+	function AutoCrouch:Disable()
+		self:Uncrouch()
+		if self.Connection then
+			self.Connection:Disconnect()
+			self.Connection = nil
+		end
+		if self.RespawnConn then
+			self.RespawnConn:Disconnect()
+			self.RespawnConn = nil
+		end
+	end
+
+	Toggles.AutoCrouchToggle:OnChanged(function(Value)
+		if Value then
+			AutoCrouch:Enable()
+			Functions.Notify({
+				Title = "Auto Crouch",
+				Time = 12,
+				Body = "Make sure 'Toggle Crouch' is disabled in the game settings (press Tab to open settings panel). If it's off, the C key won't hold crouch properly and Auto Crouch won't work correctly."
+			})
+		else
+			AutoCrouch:Disable()
+		end
+	end)
 
 	Globals.SpoofOffset = 0
 	Globals.LastAutoHide = tick()
