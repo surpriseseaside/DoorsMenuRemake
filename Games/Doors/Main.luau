@@ -1742,7 +1742,7 @@ local function CreateHUDFrame()
 	statsLabel.BackgroundTransparency = 1
 	statsLabel.Font = Enum.Font.Code
 	statsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-.TextAlignment = Enum.TextYAlignment.Top
+	statsLabel.TextYAlignment = Enum.TextYAlignment.Top
 	statsLabel.TextXAlignment = Enum.TextXAlignment.Left
 	statsLabel.TextWrapped = true
 	statsLabel.Text = ""
