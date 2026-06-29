@@ -3026,14 +3026,12 @@ Functions.HandleCharacter = function(NewCharacter)
 		hint = true, sign = true, prompt = true, glass = true,
 		window = true, carpet = true, rug = true, painting = true,
 		picture = true, candle = true, curtain = true, banner = true,
-		ui = true, label = true, effect = true, particle = true,
-		beam = true, attachment = true, cling = true, sticker = true,
-		trail = true, dirt = true, grass = true, foliage = true,
+		effect = true, particle = true, attachment = true, trail = true,
 	}
 
 	local function IsObstruction(instance)
 		if instance:IsA("Terrain") then return false end
-		if instance.Transparency >= 0.4 then return false end
+		if instance.Transparency >= 0.5 then return false end
 		if not instance:IsA("BasePart") then return false end
 
 		local nameLower = instance.Name:lower()
@@ -3075,20 +3073,24 @@ Functions.HandleCharacter = function(NewCharacter)
 
 			local fwd = lookVector * detectDist
 
-			-- High ray at standing head height
-			local highResult = workspace:Raycast(hrpPos + Vector3.new(0, 3.2, 0), fwd, params)
+			-- Ray from standing head height
+			local highResult = workspace:Raycast(hrpPos + Vector3.new(0, 3.5, 0), fwd, params)
 
-			-- Low ray at crouch head height
-			local lowResult = workspace:Raycast(hrpPos + Vector3.new(0, 1.2, 0), fwd, params)
+			if highResult and IsObstruction(highResult.Instance) then
+				local hitHeight = highResult.Position.Y - hrpPos.Y
+				local norm = highResult.Normal
 
-			-- If low ray hit the floor (normal pointing up), ignore it
-			if lowResult and lowResult.Normal.Y > 0.7 then
-				lowResult = nil
-			end
-
-			-- Only crouch if high ray hits AND low ray passes through
-			if highResult and not lowResult and IsObstruction(highResult.Instance) then
-				shouldCrouch = true
+				if hitHeight > 0.3 and hitHeight < 4.5 then
+					-- Check if we hit the bottom face of something (overhead obstruction)
+					if norm.Y < -0.1 then
+						shouldCrouch = true
+					-- Check if we hit the side face of a thin beam-like part
+					elseif math.abs(norm.Y) < 0.15 and highResult.Instance:IsA("BasePart") then
+						if highResult.Instance.Size.Y < 3 then
+							shouldCrouch = true
+						end
+					end
+				end
 			end
 
 			if shouldCrouch then
