@@ -2995,12 +2995,8 @@ Functions.HandleCharacter = function(NewCharacter)
 	Globals.LastAutoCrouch = tick()
 	Globals.AutoCrouchCrouching = false
 
-	local function SendCrouchKeyDown()
+	local function PressCrouchKey()
 		Services.VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.C, false, game)
-	end
-
-	local function SendCrouchKeyUp()
-		Services.VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
 	end
 
 	Connections.AutoCrouch = Services.RunService.Stepped:Connect(function()
@@ -3011,10 +3007,15 @@ Functions.HandleCharacter = function(NewCharacter)
 		local humanoid = Character:FindFirstChild("Humanoid")
 		if not humanoid or humanoid.Health <= 0 then return end
 
+		local actualCrouch = Character:GetAttribute("Crouching") == true
+		if actualCrouch ~= Globals.AutoCrouchCrouching then
+			Globals.AutoCrouchCrouching = actualCrouch
+		end
+
 		if Humanoid.MoveDirection == Vector3.zero then
 			if Globals.AutoCrouchCrouching then
+				PressCrouchKey()
 				Globals.AutoCrouchCrouching = false
-				SendCrouchKeyUp()
 			end
 			return
 		end
@@ -3025,31 +3026,36 @@ Functions.HandleCharacter = function(NewCharacter)
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
 		rayParams.FilterDescendantsInstances = { Character }
 
-		local origin = RootPart.Position + Vector3.new(0, 0.5, 0)
-		local direction = RootPart.CFrame.LookVector * Options.AutoCrouchDistance.Value
-		local result = Services.Workspace:Raycast(origin, direction, rayParams)
+		local forward = RootPart.CFrame.LookVector * Options.AutoCrouchDistance.Value
 
-		if result then
-			local inst = result.Instance
-			local nameLower = inst.Name:lower()
-			local hitDist = (result.Position - origin).Magnitude
+		local highHit = Services.Workspace:Raycast(
+			RootPart.Position + Vector3.new(0, 4, 0),
+			forward,
+			rayParams
+		)
 
-			if hitDist > 1.5 and not inst:IsA("Terrain") and inst.Transparency < 0.5 then
-				if not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("decal") and not nameLower:find("hint") and not nameLower:find("sign") and not nameLower:find("label") and not nameLower:find("text") and not nameLower:find("prompt") and not nameLower:find("collision") and not nameLower:find("floor") and not nameLower:find("wall") and not nameLower:find("ceiling") and not nameLower:find("ground") then
-					local hitHeight = result.Position.Y - RootPart.Position.Y
-					if hitHeight > 0.5 and hitHeight < 3 then
-						shouldCrouch = true
-					end
+		local lowHit = Services.Workspace:Raycast(
+			RootPart.Position + Vector3.new(0, 1.5, 0),
+			forward,
+			rayParams
+		)
+
+		if highHit and not lowHit then
+			local inst = highHit.Instance
+			if not inst:IsA("Terrain") and inst.Transparency < 0.5 then
+				local nameLower = inst.Name:lower()
+				if not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("decal") and not nameLower:find("hint") and not nameLower:find("sign") and not nameLower:find("prompt") then
+					shouldCrouch = true
 				end
 			end
 		end
 
 		if shouldCrouch and not Globals.AutoCrouchCrouching then
 			Globals.AutoCrouchCrouching = true
-			SendCrouchKeyDown()
+			PressCrouchKey()
 		elseif not shouldCrouch and Globals.AutoCrouchCrouching then
 			Globals.AutoCrouchCrouching = false
-			SendCrouchKeyUp()
+			PressCrouchKey()
 		end
 	end)
 
@@ -3062,7 +3068,7 @@ Functions.HandleCharacter = function(NewCharacter)
 			})
 		else
 			if Globals.AutoCrouchCrouching then
-				SendCrouchKeyUp()
+				PressCrouchKey()
 				Globals.AutoCrouchCrouching = false
 			end
 		end
