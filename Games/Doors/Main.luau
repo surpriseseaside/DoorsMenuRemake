@@ -1874,6 +1874,7 @@ Functions.UpdateNextDoorESP = function()
 
 	local closestDoor = nil
 	for _, Object in Objects.Doors do
+		if not Object or not Object:IsDescendantOf(Services.Workspace) then continue end
 		local doorRoom = tonumber(Object:GetAttribute("ParentRoom"))
 		if doorRoom == tonumber(closestRoom.Name) then
 			closestDoor = Object
@@ -1891,13 +1892,22 @@ Functions.UpdateNextDoorESP = function()
 	end
 	if not doorPart then return end
 
+	if NextDoorESPData.ClaimedDoor and not NextDoorESPData.ClaimedDoor:IsDescendantOf(Services.Workspace) then
+		if NextDoorESPData.CurrentTarget then
+			Functions.RemoveESP(NextDoorESPData.CurrentTarget)
+			NextDoorESPData.CurrentTarget = nil
+		end
+		NextDoorESPData.ClaimedDoor = nil
+		NextDoorESPData.CurrentDoor = nil
+	end
+
 	if closestDoor ~= NextDoorESPData.CurrentDoor then
 		if NextDoorESPData.CurrentTarget then
 			Functions.RemoveESP(NextDoorESPData.CurrentTarget)
 			NextDoorESPData.CurrentTarget = nil
 		end
 
-		if NextDoorESPData.ClaimedDoor and NextDoorESPData.ClaimedDoor ~= closestDoor then
+		if NextDoorESPData.ClaimedDoor and NextDoorESPData.ClaimedDoor ~= closestDoor and NextDoorESPData.ClaimedDoor:IsDescendantOf(Services.Workspace) then
 			if Toggles.DoorESPToggle.Value then
 				Functions.AddESP({ Object = NextDoorESPData.ClaimedDoor, Text = "Door " .. Functions.GetDoorNumber(NextDoorESPData.ClaimedDoor), Color = Options.DoorESPColor.Value }, true)
 			end
@@ -1906,19 +1916,22 @@ Functions.UpdateNextDoorESP = function()
 		Functions.RemoveESP(closestDoor)
 		NextDoorESPData.ClaimedDoor = closestDoor
 
-		if not NextDoorESPData.ProxyPart then
-			local p = Instance.new("Part")
-			p.Name = "NextDoorESP_Proxy"
-			p.Size = Vector3.new(1, 1, 1)
-			p.Transparency = 1
-			p.CanCollide = false
-			p.CanQuery = false
-			p.CanTouch = false
-			p.Anchored = true
-			p.Parent = Services.Workspace
-			Instance.new("Humanoid", p).Name = "HighlightHumanoid"
-			NextDoorESPData.ProxyPart = p
+		if NextDoorESPData.ProxyPart and NextDoorESPData.ProxyPart:IsDescendantOf(Services.Workspace) then
+			NextDoorESPData.ProxyPart:Destroy()
+			NextDoorESPData.ProxyPart = nil
 		end
+
+		local p = Instance.new("Part")
+		p.Name = "NextDoorESP_Proxy"
+		p.Size = Vector3.new(1, 1, 1)
+		p.Transparency = 1
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Anchored = true
+		p.Parent = Services.Workspace
+		Instance.new("Humanoid", p).Name = "HighlightHumanoid"
+		NextDoorESPData.ProxyPart = p
 
 		NextDoorESPData.ProxyPart.CFrame = doorPart.CFrame
 		NextDoorESPData.CurrentDoor = closestDoor
@@ -1926,7 +1939,7 @@ Functions.UpdateNextDoorESP = function()
 		Functions.AddESP({ Object = NextDoorESPData.ProxyPart, Text = "Next Door [" .. Functions.GetDoorNumber(closestDoor) .. "]", Color = Options.NextDoorESPColor.Value })
 	end
 
-	if NextDoorESPData.ProxyPart and NextDoorESPData.ProxyPart.Parent then
+	if NextDoorESPData.ProxyPart and NextDoorESPData.ProxyPart:IsDescendantOf(Services.Workspace) then
 		NextDoorESPData.ProxyPart.CFrame = doorPart.CFrame
 	end
 end
@@ -1947,13 +1960,13 @@ Toggles.NextDoorESPToggle:OnChanged(function(Value)
 			Functions.RemoveESP(NextDoorESPData.CurrentTarget)
 			NextDoorESPData.CurrentTarget = nil
 		end
-		if NextDoorESPData.ClaimedDoor then
+		if NextDoorESPData.ClaimedDoor and NextDoorESPData.ClaimedDoor:IsDescendantOf(Services.Workspace) then
 			if Toggles.DoorESPToggle.Value then
 				Functions.AddESP({ Object = NextDoorESPData.ClaimedDoor, Text = "Door " .. Functions.GetDoorNumber(NextDoorESPData.ClaimedDoor), Color = Options.DoorESPColor.Value }, true)
 			end
 			NextDoorESPData.ClaimedDoor = nil
 		end
-		if NextDoorESPData.ProxyPart then
+		if NextDoorESPData.ProxyPart and NextDoorESPData.ProxyPart:IsDescendantOf(Services.Workspace) then
 			NextDoorESPData.ProxyPart:Destroy()
 			NextDoorESPData.ProxyPart = nil
 		end
@@ -1961,7 +1974,7 @@ Toggles.NextDoorESPToggle:OnChanged(function(Value)
 	end
 end)
 Options.NextDoorESPColor:OnChanged(function(Value)
-	if NextDoorESPData.ProxyPart then
+	if NextDoorESPData.ProxyPart and NextDoorESPData.ProxyPart:IsDescendantOf(Services.Workspace) then
 		DoorsMenuRemake.ESPLibrary:UpdateObjectColor(NextDoorESPData.ProxyPart, Value)
 	end
 end)
