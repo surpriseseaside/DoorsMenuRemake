@@ -2993,12 +2993,26 @@ Functions.HandleCharacter = function(NewCharacter)
 	end
 
 	Globals.LastAutoCrouch = tick()
+	Globals.AutoCrouchActive = false
+
+	local function PressCrouchKey()
+		Services.VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.C, false, game)
+		task.wait()
+		Services.VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
+	end
+
 	Connections.AutoCrouch = Services.RunService.Heartbeat:Connect(function()
-		if not Toggles.AutoCrouchToggle.Value or not Character or not RootPart or not CollisionPart then return end
+		if not Toggles.AutoCrouchToggle.Value or not Character or not RootPart then return end
 		if tick() - Globals.LastAutoCrouch < 0.05 then return end
 		Globals.LastAutoCrouch = tick()
 
-		if Humanoid.MoveDirection == Vector3.zero then return end
+		if Humanoid.MoveDirection == Vector3.zero then
+			if Globals.AutoCrouchActive then
+				PressCrouchKey()
+				Globals.AutoCrouchActive = false
+			end
+			return
+		end
 
 		local rayParams = RaycastParams.new()
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -3022,10 +3036,27 @@ Functions.HandleCharacter = function(NewCharacter)
 
 		local shouldCrouch = standingHit and not crouchingHit
 
-		if shouldCrouch and not Functions.IsCrouching() then
-			RemotesFolder.Crouch:FireServer(true, true)
-		elseif not shouldCrouch and Functions.IsCrouching() and not Toggles.CrouchSpoof.Value and not Toggles.PositionSpoof.Value then
-			RemotesFolder.Crouch:FireServer(false, true)
+		if shouldCrouch and not Globals.AutoCrouchActive then
+			PressCrouchKey()
+			Globals.AutoCrouchActive = true
+		elseif not shouldCrouch and Globals.AutoCrouchActive then
+			PressCrouchKey()
+			Globals.AutoCrouchActive = false
+		end
+	end)
+
+	Toggles.AutoCrouchToggle:OnChanged(function(Value)
+		if Value then
+			Functions.Notify({
+				Title = "Auto Crouch",
+				Time = 12,
+				Body = "Make sure 'Toggle Crouch' is enabled in the game settings (press Tab to open settings panel). If it's off, the C key won't toggle crouch and Auto Crouch won't work correctly."
+			})
+		else
+			if Globals.AutoCrouchActive then
+				PressCrouchKey()
+				Globals.AutoCrouchActive = false
+			end
 		end
 	end)
 
