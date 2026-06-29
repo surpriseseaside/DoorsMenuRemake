@@ -3003,8 +3003,6 @@ Functions.HandleCharacter = function(NewCharacter)
 		Services.VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
 	end
 
-	local AutoCrouchNames = { door=true, light=true, poster=true, posterframe=true, decal=true,GuiObject=true,part=true,handle=true,tool=true }
-
 	Connections.AutoCrouch = Services.RunService.Stepped:Connect(function()
 		if not Toggles.AutoCrouchToggle.Value or not Character or not RootPart then return end
 		if tick() - Globals.LastAutoCrouch < 0.05 then return end
@@ -3012,6 +3010,14 @@ Functions.HandleCharacter = function(NewCharacter)
 
 		local humanoid = Character:FindFirstChild("Humanoid")
 		if not humanoid or humanoid.Health <= 0 then return end
+
+		if Humanoid.MoveDirection == Vector3.zero then
+			if Globals.AutoCrouchCrouching then
+				Globals.AutoCrouchCrouching = false
+				SendCrouchKeyUp()
+			end
+			return
+		end
 
 		local shouldCrouch = false
 
@@ -3026,11 +3032,12 @@ Functions.HandleCharacter = function(NewCharacter)
 		if result then
 			local inst = result.Instance
 			local nameLower = inst.Name:lower()
+			local hitDist = (result.Position - origin).Magnitude
 
-			if not inst:IsA("Terrain") and inst.Transparency < 0.5 then
-				if not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("decal") and not nameLower:find("hint") and not nameLower:find("sign") and not nameLower:find("label") and not nameLower:find("text") and not nameLower:find("prompt") then
+			if hitDist > 1.5 and not inst:IsA("Terrain") and inst.Transparency < 0.5 then
+				if not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("decal") and not nameLower:find("hint") and not nameLower:find("sign") and not nameLower:find("label") and not nameLower:find("text") and not nameLower:find("prompt") and not nameLower:find("collision") and not nameLower:find("floor") and not nameLower:find("wall") and not nameLower:find("ceiling") and not nameLower:find("ground") then
 					local hitHeight = result.Position.Y - RootPart.Position.Y
-					if hitHeight > 0 and hitHeight < 3 then
+					if hitHeight > 0.5 and hitHeight < 3 then
 						shouldCrouch = true
 					end
 				end
