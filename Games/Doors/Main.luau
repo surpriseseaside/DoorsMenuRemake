@@ -3031,12 +3031,10 @@ Functions.HandleCharacter = function(NewCharacter)
 		trail = true, dirt = true, grass = true, foliage = true,
 	}
 
-	local function IsObstructionRelevant(instance, hitHeight, hrpY)
+	local function IsObstructionRelevant(instance, hitHeight)
 		if instance:IsA("Terrain") then return false end
-		if instance.Transparency >= 0.35 then return false end
+		if instance.Transparency >= 0.4 then return false end
 		if not instance:IsA("BasePart") then return false end
-		if instance.Size.Y <= 0.3 then return false end
-		if instance.Massless and not instance.Anchored then return false end
 
 		local nameLower = instance.Name:lower()
 		for pattern in pairs(IgnoreNames) do
@@ -3045,7 +3043,7 @@ Functions.HandleCharacter = function(NewCharacter)
 			end
 		end
 
-		return hitHeight > 0.5 and hitHeight < 4.0
+		return hitHeight > 0.3 and hitHeight < 4.2
 	end
 
 	function AutoCrouch:Enable()
@@ -3070,39 +3068,29 @@ Functions.HandleCharacter = function(NewCharacter)
 			local shouldCrouch = false
 			local detectDist = Options.AutoCrouchDistance.Value
 			local hrpPos = hrp.Position
-			local lookCF = CFrame.new(Vector3.zero, hrp.CFrame.LookVector)
+			local hrpCF = hrp.CFrame
+			local lookVector = hrpCF.LookVector
 			local params = RaycastParams.new()
 			params.FilterDescendantsInstances = { character }
 			params.FilterType = Enum.RaycastFilterType.Exclude
 
-			-- Fan raycasts at multiple heights for robust detection
-			local fanAngles = { -0.2, 0, 0.2 }
-			local probeHeights = { 3.5, 2.8, 2.0 }
+			-- Fan raycasts at head height for wide coverage
+			local fanDirections = {
+				lookVector,
+				(lookVector + hrpCF.RightVector * -0.3).Unit,
+				(lookVector + hrpCF.RightVector * 0.3).Unit,
+			}
+			local headOrigin = hrpPos + Vector3.new(0, 3.2, 0)
 
-			for _, angle in fanAngles do
-				local dir = (lookCF * CFrame.Angles(0, angle, 0)).LookVector * detectDist
-				for _, heightOffset in probeHeights do
-					local origin = hrpPos + Vector3.new(0, heightOffset, 0)
-					local result = workspace:Raycast(origin, dir, params)
-					if result then
-						local hitHeight = result.Position.Y - hrpPos.Y
-						if IsObstructionRelevant(result.Instance, hitHeight, hrpPos.Y) then
-							-- Scan downward from the hit point to find clearance
-							local downDir = Vector3.new(0, -hitHeight - 1, 0)
-							local downResult = workspace:Raycast(result.Position, downDir, params)
-							if downResult then
-								local clearance = result.Position.Y - downResult.Position.Y
-								if clearance < 4.5 then
-									shouldCrouch = true
-									break
-								end
-							else
-								-- No floor found below obstruction -> floating object, ignore
-							end
-						end
+			for _, dir in fanDirections do
+				local result = workspace:Raycast(headOrigin, dir * detectDist, params)
+				if result then
+					local hitHeight = result.Position.Y - hrpPos.Y
+					if IsObstructionRelevant(result.Instance, hitHeight) then
+						shouldCrouch = true
+						break
 					end
 				end
-				if shouldCrouch then break end
 			end
 
 			if shouldCrouch then
