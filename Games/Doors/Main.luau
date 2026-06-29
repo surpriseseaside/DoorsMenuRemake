@@ -2995,16 +2995,28 @@ Functions.HandleCharacter = function(NewCharacter)
 	Globals.LastAutoCrouch = tick()
 	Globals.AutoCrouchCrouching = false
 
+	local function SendCrouchKeyDown()
+		pcall(function()
+			game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.C, false, game)
+		end)
+	end
+
+	local function SendCrouchKeyUp()
+		pcall(function()
+			game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.C, false, game)
+		end)
+	end
+
 	local function DoCrouch()
 		if Globals.AutoCrouchCrouching then return end
 		Globals.AutoCrouchCrouching = true
-		Services.VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.C, false, game)
+		SendCrouchKeyDown()
 	end
 
 	local function DoUncrouch()
 		if not Globals.AutoCrouchCrouching then return end
 		Globals.AutoCrouchCrouching = false
-		Services.VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
+		SendCrouchKeyUp()
 	end
 
 	Connections.AutoCrouch = Services.RunService.Stepped:Connect(function()
