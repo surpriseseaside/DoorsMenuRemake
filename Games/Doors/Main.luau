@@ -1766,87 +1766,100 @@ local function CreateHUDFrame()
 	return sg, frame
 end
 
-Globals.HUDScreen, Globals.HUDFrame = CreateHUDFrame()
+pcall(function()
+	Globals.HUDScreen, Globals.HUDFrame = CreateHUDFrame()
+end)
 Globals.HUDLastUpdate = 0
 Globals.HUDFPS = 60
 Globals.HUDFPSCount = 0
 Globals.HUDFPSLast = tick()
 
-Connections.HUDFPSCounter = Services.RunService.RenderStepped:Connect(function()
-	Globals.HUDFPSCount += 1
-	if tick() - Globals.HUDFPSLast >= 1 then
-		Globals.HUDFPS = Globals.HUDFPSCount
-		Globals.HUDFPSCount = 0
-		Globals.HUDFPSLast = tick()
-	end
+pcall(function()
+	Connections.HUDFPSCounter = Services.RunService.RenderStepped:Connect(function()
+		Globals.HUDFPSCount += 1
+		if tick() - Globals.HUDFPSLast >= 1 then
+			Globals.HUDFPS = Globals.HUDFPSCount
+			Globals.HUDFPSCount = 0
+			Globals.HUDFPSLast = tick()
+		end
+	end)
 end)
 
 Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
-	if tick() - Globals.HUDLastUpdate < 0.25 then return end
-	Globals.HUDLastUpdate = tick()
+	pcall(function()
+		if tick() - Globals.HUDLastUpdate < 0.25 then return end
+		Globals.HUDLastUpdate = tick()
 
-	if not Globals.HUDFrame or not Globals.HUDFrame.Parent then return end
+		if not Globals.HUDFrame or not Globals.HUDFrame.Parent then return end
 
-	local opacity = Options.HUDOpacity.Value
-	local textSize = Options.HUDTextSize.Value
-	local roomLabel = Globals.HUDFrame:FindFirstChild("RoomLabel")
-	local statsLabel = Globals.HUDFrame:FindFirstChild("StatsLabel")
-	local entitiesLabel = Globals.HUDFrame:FindFirstChild("EntitiesLabel")
+		local opacity = Options.HUDOpacity.Value
+		local textSize = Options.HUDTextSize.Value
+		local roomLabel = Globals.HUDFrame:FindFirstChild("RoomLabel")
+		local statsLabel = Globals.HUDFrame:FindFirstChild("StatsLabel")
+		local entitiesLabel = Globals.HUDFrame:FindFirstChild("EntitiesLabel")
 
-	if roomLabel then
-		roomLabel.TextSize = textSize
-		roomLabel.TextColor3 = Library.Scheme.AccentColor or Color3.fromRGB(0, 200, 255)
-	end
-	if statsLabel then statsLabel.TextSize = textSize - 2 end
-	if entitiesLabel then entitiesLabel.TextSize = textSize - 2 end
+		local accentColor = Color3.fromRGB(0, 200, 255)
+		pcall(function() accentColor = Library.Scheme.AccentColor end)
 
-	Globals.HUDFrame.BackgroundTransparency = 1 - opacity
-
-	local showRoom = Toggles.ShowActualRoomToggle.Value
-	local showStats = Toggles.ShowStatisticsToggle.Value
-	local showEntities = Toggles.ShowSpawnedEntitiesToggle.Value
-
-	if roomLabel then
-		roomLabel.Visible = showRoom
-		if showRoom then
-			local currentRoom = LocalPlayer:GetAttribute("CurrentRoom")
-			roomLabel.Text = "Room: " .. (currentRoom and tostring(currentRoom) or "?")
+		if roomLabel then
+			roomLabel.TextSize = textSize
+			roomLabel.TextColor3 = accentColor
 		end
-	end
+		if statsLabel then statsLabel.TextSize = textSize - 2 end
+		if entitiesLabel then entitiesLabel.TextSize = textSize - 2 end
 
-	if statsLabel then
-		statsLabel.Visible = showStats
-		if showStats then
-			local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
-			local mem = math.floor(collectgarbage("count"))
-			statsLabel.Text = string.format(
-				"FPS: %d | Ping: %dms\nMemory: %dMB",
-				Globals.HUDFPS, ping, mem
-			)
-		end
-	end
+		Globals.HUDFrame.BackgroundTransparency = 1 - opacity
 
-	if entitiesLabel then
-		entitiesLabel.Visible = showEntities
-		if showEntities then
-			local lines = {}
-			for _, Entity in Services.Workspace:GetChildren() do
-				local entityData = Entities[Entity.Name]
-				if entityData and Entity.PrimaryPart then
-					local dist = math.floor(LocalPlayer:DistanceFromCharacter(Entity.PrimaryPart.Position))
-					table.insert(lines, string.format("%s [%dm]", entityData.Alias, dist))
-				end
+		local showRoom = Toggles.ShowActualRoomToggle.Value
+		local showStats = Toggles.ShowStatisticsToggle.Value
+		local showEntities = Toggles.ShowSpawnedEntitiesToggle.Value
+
+		if roomLabel then
+			roomLabel.Visible = showRoom
+			if showRoom then
+				local currentRoom = LocalPlayer:GetAttribute("CurrentRoom")
+				roomLabel.Text = "Room: " .. (currentRoom and tostring(currentRoom) or "?")
 			end
-			entitiesLabel.Text = #lines > 0 and table.concat(lines, "\n") or "None"
 		end
-	end
 
-	local totalHeight = 8
-	if showRoom then totalHeight = totalHeight + 22 end
-	if showStats then totalHeight = totalHeight + statsLabel.TextBounds.Y + 6 end
-	if showEntities then totalHeight = totalHeight + entitiesLabel.TextBounds.Y + 6 end
-	if totalHeight < 30 then totalHeight = 30 end
-	Globals.HUDFrame.Size = UDim2.new(0, 220, 0, totalHeight)
+		if statsLabel then
+			statsLabel.Visible = showStats
+			if showStats then
+				local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
+				local mem = math.floor(collectgarbage("count"))
+				statsLabel.Text = string.format(
+					"FPS: %d | Ping: %dms\nMemory: %dMB",
+					Globals.HUDFPS, ping, mem
+				)
+			end
+		end
+
+		if entitiesLabel then
+			entitiesLabel.Visible = showEntities
+			if showEntities then
+				local lines = {}
+				for _, Entity in Services.Workspace:GetChildren() do
+					local entityData = Entities[Entity.Name]
+					if entityData and Entity.PrimaryPart then
+						local success, dist = pcall(function()
+							return math.floor(LocalPlayer:DistanceFromCharacter(Entity.PrimaryPart.Position))
+						end)
+						if success then
+							table.insert(lines, string.format("%s [%dm]", entityData.Alias, dist))
+						end
+					end
+				end
+				entitiesLabel.Text = #lines > 0 and table.concat(lines, "\n") or "None"
+			end
+		end
+
+		local totalHeight = 8
+		if showRoom then totalHeight = totalHeight + 22 end
+		if statsLabel and showStats then totalHeight = totalHeight + statsLabel.TextBounds.Y + 6 end
+		if entitiesLabel and showEntities then totalHeight = totalHeight + entitiesLabel.TextBounds.Y + 6 end
+		if totalHeight < 30 then totalHeight = 30 end
+		Globals.HUDFrame.Size = UDim2.new(0, 220, 0, totalHeight)
+	end)
 end)
 
 Groupboxes.Visuals_RightTab     = Tabs.Visuals:AddRightTabbox("Entities / Settings")
