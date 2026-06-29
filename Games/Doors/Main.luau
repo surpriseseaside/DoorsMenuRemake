@@ -3073,21 +3073,33 @@ Functions.HandleCharacter = function(NewCharacter)
 
 			local fwd = lookVector * detectDist
 
-			-- Ray from mid-body height forward
-			local origin = hrpPos + Vector3.new(0, 0.75, 0)
-			local result = workspace:Raycast(origin, fwd, params)
+			-- FORWARD CHECK: detect overhead obstructions ahead
+			local forwardOrigin = hrpPos + Vector3.new(0, 0.75, 0)
+			local forwardResult = workspace:Raycast(forwardOrigin, fwd, params)
 
-			if result and IsObstruction(result.Instance) then
-				local hitHeight = result.Position.Y - hrpPos.Y
+			if forwardResult and IsObstruction(forwardResult.Instance) then
+				local hitHeight = forwardResult.Position.Y - hrpPos.Y
 				if hitHeight > 0.2 and hitHeight < 3.5 then
-					-- Cast downward from the hit surface to check if this is a
-					-- solid wall (same part continues down) or an overhead
-					-- obstruction (clear space below)
-					local downOrigin = result.Position + result.Normal * 0.1
+					local downOrigin = forwardResult.Position + forwardResult.Normal * 0.1
 					local downResult = workspace:Raycast(downOrigin, Vector3.new(0, -2, 0), params)
-
-					local isSolidWall = downResult and downResult.Instance == result.Instance
+					local isSolidWall = downResult and downResult.Instance == forwardResult.Instance
 					if not isSolidWall then
+						shouldCrouch = true
+					end
+				end
+			end
+
+			-- UPWARD CHECK: while already crouching, verify there is still
+			-- something above the head before uncrouching
+			if not shouldCrouch and self.IsCrouching then
+				local head = character:FindFirstChild("Head")
+				if head then
+					local upResult = workspace:Raycast(
+						head.Position + Vector3.new(0, 0.1, 0),
+						Vector3.new(0, 3, 0),
+						params
+					)
+					if upResult and (upResult.Position.Y - head.Position.Y < 2.5) then
 						shouldCrouch = true
 					end
 				end
