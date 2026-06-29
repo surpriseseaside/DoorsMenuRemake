@@ -1695,253 +1695,16 @@ Groupboxes.Visuals_HUDTab  = Tabs.Visuals:AddLeftTabbox("HUD")
 Groupboxes.Visuals_HUD     = Groupboxes.Visuals_HUDTab:AddTab("HUD")
 
 Groupboxes.Visuals_HUD:AddToggle("ShowActualRoomToggle", { Text = "Show Actual Room", Default = false, Tooltip = "Displays the current room number on screen." })
-Groupboxes.Visuals_HUD:AddToggle("ShowStatisticsToggle", { Text = "Show Statistics", Default = false, Tooltip = "Displays FPS, Ping, Memory, CPU and GPU stats on screen." })
-Groupboxes.Visuals_HUD:AddToggle("ShowSpawnedEntitiesToggle", { Text = "Show Spawned Entities", Default = false, Tooltip = "Displays a list of nearby entities with distance and data." })
+Groupboxes.Visuals_HUD:AddToggle("ShowStatisticsToggle", { Text = "Show Statistics", Default = false, Tooltip = "Displays FPS, Ping, Memory stats on screen." })
+Groupboxes.Visuals_HUD:AddToggle("ShowSpawnedEntitiesToggle", { Text = "Show Spawned Entities", Default = false, Tooltip = "Displays a list of nearby entities with distance." })
 Groupboxes.Visuals_HUD:AddSlider("HUDOpacity", { Text = "HUD Opacity", Min = 0.1, Max = 1, Default = 0.7, Rounding = 2, Compact = true })
 Groupboxes.Visuals_HUD:AddSlider("HUDTextSize", { Text = "Text Size", Min = 10, Max = 18, Default = 13, Rounding = 0, Compact = true })
 
-local function GetSchemeColor(name, fallback)
-	local ok, val = pcall(function() return Library.Scheme[name] end)
-	return ok and val or fallback
-end
-
-local function GetDPIScale()
-	local ok, val = pcall(function() return Library.DPIScale or Library.DpiScale end)
-	if ok and type(val) == "number" and val > 0 then
-		if val > 5 then return val / 100 end
-		return val
-	end
-	return 1
-end
-
-local function GetHUDFont()
-	local ok, val = pcall(function() return Library.Font end)
-	if ok and val then
-		if type(val) == "userdata" then return val end
-		if type(val) == "string" then
-			local ok2, enumVal = pcall(function() return Enum.Font[val] end)
-			if ok2 and enumVal then return enumVal end
-		end
-	end
-	return Enum.Font.Gotham
-end
-
-local function MakeDraggable(frame, handle)
-	local dragging, dragInput, dragStart, startPos
-	handle.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			dragStart = input.Position
-			startPos = frame.Position
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
-		end
-	end)
-	handle.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-			dragInput = input
-		end
-	end)
-	Services.UserInputService.InputChanged:Connect(function(input)
-		if input == dragInput and dragging then
-			local delta = input.Position - dragStart
-			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-		end
-	end)
-end
-
-local function BuildHUD()
-	pcall(function()
-		local old = GetHiddenContainer():FindFirstChild("DoorsMenuRemake_HUD")
-		if old then old:Destroy() end
-	end)
-
-	local dpi = GetDPIScale()
-	local font = GetHUDFont()
-	local bgColor = GetSchemeColor("BackgroundColor", Color3.fromRGB(20, 20, 20))
-	local mainColor = GetSchemeColor("MainColor", Color3.fromRGB(28, 28, 28))
-	local accentColor = GetSchemeColor("AccentColor", Color3.fromRGB(0, 85, 255))
-	local fontColor = GetSchemeColor("FontColor", Color3.fromRGB(255, 255, 255))
-	local outlineColor = GetSchemeColor("OutlineColor", Color3.fromRGB(50, 50, 50))
-
-	local sg = Instance.new("ScreenGui")
-	sg.Name = "DoorsMenuRemake_HUD"
-	sg.ResetOnSpawn = false
-	sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	sg.DisplayOrder = 32766
-	sg.Parent = GetHiddenContainer()
-
-	local main = Instance.new("Frame")
-	main.Name = "HUDFrame"
-	main.AnchorPoint = Vector2.new(0, 0.5)
-	main.Position = UDim2.new(0, 12, 0.4, 0)
-	main.Size = UDim2.new(0, 220 * dpi, 0, 44 * dpi)
-	main.BackgroundColor3 = bgColor
-	main.BackgroundTransparency = 0.1
-	main.BorderSizePixel = 0
-	main.Parent = sg
-	Instance.new("UICorner", main).CornerRadius = UDim.new(0, 6 * dpi)
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = outlineColor
-	stroke.Thickness = 1
-	stroke.Transparency = 0.2
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = main
-
-	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 8 * dpi)
-	padding.PaddingBottom = UDim.new(0, 8 * dpi)
-	padding.PaddingLeft = UDim.new(0, 10 * dpi)
-	padding.PaddingRight = UDim.new(0, 10 * dpi)
-	padding.Parent = main
-
-	local list = Instance.new("UIListLayout")
-	list.FillDirection = Enum.FillDirection.Vertical
-	list.Padding = UDim.new(0, 2 * dpi)
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Parent = main
-
-	MakeDraggable(main, main)
-
-	local roomTitle = Instance.new("TextLabel")
-	roomTitle.Name = "RoomTitle"
-	roomTitle.Size = UDim2.new(1, 0, 0, 14 * dpi)
-	roomTitle.BackgroundTransparency = 1
-	roomTitle.Font = font
-	roomTitle.TextSize = 11 * dpi
-	roomTitle.TextColor3 = accentColor
-	roomTitle.TextXAlignment = Enum.TextXAlignment.Left
-	roomTitle.Text = "Room"
-	roomTitle.LayoutOrder = 1
-	roomTitle.Visible = false
-	roomTitle.Parent = main
-
-	local roomDiv = Instance.new("Frame")
-	roomDiv.Name = "RoomDivider"
-	roomDiv.Size = UDim2.new(1, 0, 0, 1)
-	roomDiv.BackgroundColor3 = outlineColor
-	roomDiv.BackgroundTransparency = 0.5
-	roomDiv.BorderSizePixel = 0
-	roomDiv.LayoutOrder = 2
-	roomDiv.Visible = false
-	roomDiv.Parent = main
-
-	local roomValue = Instance.new("TextLabel")
-	roomValue.Name = "RoomValue"
-	roomValue.Size = UDim2.new(1, 0, 0, 16 * dpi)
-	roomValue.BackgroundTransparency = 1
-	roomValue.Font = font
-	roomValue.TextSize = 14 * dpi
-	roomValue.TextColor3 = fontColor
-	roomValue.TextXAlignment = Enum.TextXAlignment.Left
-	roomValue.Text = ""
-	roomValue.LayoutOrder = 3
-	roomValue.Visible = false
-	roomValue.Parent = main
-
-	Globals.HUDRoomTitle = roomTitle
-	Globals.HUDRoomDivider = roomDiv
-	Globals.HUDRoomValue = roomValue
-
-	local statsTitle = Instance.new("TextLabel")
-	statsTitle.Name = "StatsTitle"
-	statsTitle.Size = UDim2.new(1, 0, 0, 14 * dpi)
-	statsTitle.BackgroundTransparency = 1
-	statsTitle.Font = font
-	statsTitle.TextSize = 11 * dpi
-	statsTitle.TextColor3 = accentColor
-	statsTitle.TextXAlignment = Enum.TextXAlignment.Left
-	statsTitle.Text = "Statistics"
-	statsTitle.LayoutOrder = 10
-	statsTitle.Visible = false
-	statsTitle.Parent = main
-
-	local statsDiv = Instance.new("Frame")
-	statsDiv.Name = "StatsDivider"
-	statsDiv.Size = UDim2.new(1, 0, 0, 1)
-	statsDiv.BackgroundColor3 = outlineColor
-	statsDiv.BackgroundTransparency = 0.5
-	statsDiv.BorderSizePixel = 0
-	statsDiv.LayoutOrder = 11
-	statsDiv.Visible = false
-	statsDiv.Parent = main
-
-	local statsValue = Instance.new("TextLabel")
-	statsValue.Name = "StatsValue"
-	statsValue.Size = UDim2.new(1, 0, 0, 0)
-	statsValue.AutomaticSize = Enum.AutomaticSize.Y
-	statsValue.BackgroundTransparency = 1
-	statsValue.Font = font
-	statsValue.TextSize = 11 * dpi
-	statsValue.TextColor3 = fontColor
-	statsValue.TextXAlignment = Enum.TextXAlignment.Left
-	statsValue.TextYAlignment = Enum.TextYAlignment.Top
-	statsValue.TextWrapped = true
-	statsValue.Text = ""
-	statsValue.LayoutOrder = 12
-	statsValue.Visible = false
-	statsValue.Parent = main
-
-	Globals.HUDStatsTitle = statsTitle
-	Globals.HUDStatsDivider = statsDiv
-	Globals.HUDStatsValue = statsValue
-
-	local entityTitle = Instance.new("TextLabel")
-	entityTitle.Name = "EntityTitle"
-	entityTitle.Size = UDim2.new(1, 0, 0, 14 * dpi)
-	entityTitle.BackgroundTransparency = 1
-	entityTitle.Font = font
-	entityTitle.TextSize = 11 * dpi
-	entityTitle.TextColor3 = accentColor
-	entityTitle.TextXAlignment = Enum.TextXAlignment.Left
-	entityTitle.Text = "Entities"
-	entityTitle.LayoutOrder = 20
-	entityTitle.Visible = false
-	entityTitle.Parent = main
-
-	local entityDiv = Instance.new("Frame")
-	entityDiv.Name = "EntityDivider"
-	entityDiv.Size = UDim2.new(1, 0, 0, 1)
-	entityDiv.BackgroundColor3 = outlineColor
-	entityDiv.BackgroundTransparency = 0.5
-	entityDiv.BorderSizePixel = 0
-	entityDiv.LayoutOrder = 21
-	entityDiv.Visible = false
-	entityDiv.Parent = main
-
-	local entityValue = Instance.new("TextLabel")
-	entityValue.Name = "EntityValue"
-	entityValue.Size = UDim2.new(1, 0, 0, 0)
-	entityValue.AutomaticSize = Enum.AutomaticSize.Y
-	entityValue.BackgroundTransparency = 1
-	entityValue.Font = font
-	entityValue.TextSize = 11 * dpi
-	entityValue.TextColor3 = fontColor
-	entityValue.TextXAlignment = Enum.TextXAlignment.Left
-	entityValue.TextYAlignment = Enum.TextYAlignment.Top
-	entityValue.TextWrapped = true
-	entityValue.Text = ""
-	entityValue.LayoutOrder = 22
-	entityValue.Visible = false
-	entityValue.Parent = main
-
-	Globals.HEntityTitle = entityTitle
-	Globals.HEntityDivider = entityDiv
-	Globals.HEntityValue = entityValue
-
-	Globals.HUDScreen = sg
-	Globals.HUDFrame = main
-end
-
-pcall(BuildHUD)
-Globals.HUDLastUpdate = 0
 Globals.HUDFPS = 60
 Globals.HUDFPSCount = 0
 Globals.HUDFPSLast = tick()
+Globals.HUDScreen = nil
+Globals.HUDFrame = nil
 
 pcall(function()
 	Connections.HUDFPSCounter = Services.RunService.RenderStepped:Connect(function()
@@ -1954,69 +1717,137 @@ pcall(function()
 	end)
 end)
 
-Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
-	pcall(function()
-		if tick() - Globals.HUDLastUpdate < 0.25 then return end
-		Globals.HUDLastUpdate = tick()
+pcall(function()
+	Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
+		if not Toggles.ShowActualRoomToggle.Value and not Toggles.ShowStatisticsToggle.Value and not Toggles.ShowSpawnedEntitiesToggle.Value then
+			if Globals.HUDScreen then Globals.HUDScreen.Enabled = false end
+			return
+		end
 
-		if not Globals.HUDFrame or not Globals.HUDFrame.Parent then return end
+		if not Globals.HUDFrame then
+			local scheme = {}
+			pcall(function()
+				scheme.BG = Library.Scheme.BackgroundColor or Color3.fromRGB(20, 20, 20)
+				scheme.Accent = Library.Scheme.AccentColor or Color3.fromRGB(0, 85, 255)
+				scheme.Font = Library.Scheme.FontColor or Color3.fromRGB(255, 255, 255)
+				scheme.Outline = Library.Scheme.OutlineColor or Color3.fromRGB(50, 50, 50)
+			end)
+			if not scheme.BG then scheme.BG = Color3.fromRGB(20, 20, 20) end
+			if not scheme.Accent then scheme.Accent = Color3.fromRGB(0, 85, 255) end
+			if not scheme.Font then scheme.Font = Color3.fromRGB(255, 255, 255) end
+			if not scheme.Outline then scheme.Outline = Color3.fromRGB(50, 50, 50) end
 
-		local dpi = GetDPIScale()
-		local opacity = Options.HUDOpacity.Value
-		local textSize = Options.HUDTextSize.Value
-		local font = GetHUDFont()
+			local sg = Instance.new("ScreenGui")
+			sg.Name = "DoorsMenuRemake_HUD"
+			sg.ResetOnSpawn = false
+			sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			sg.DisplayOrder = 32766
+			sg.Parent = GetHiddenContainer()
+
+			local f = Instance.new("Frame")
+			f.Name = "HUDFrame"
+			f.AnchorPoint = Vector2.new(0, 0.5)
+			f.Position = UDim2.new(0, 12, 0.4, 0)
+			f.Size = UDim2.new(0, 220, 0, 50)
+			f.BackgroundColor3 = scheme.BG
+			f.BackgroundTransparency = 0.15
+			f.BorderSizePixel = 0
+			f.Parent = sg
+			Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
+
+			local st = Instance.new("UIStroke")
+			st.Color = scheme.Outline
+			st.Thickness = 1
+			st.Transparency = 0.2
+			st.Parent = f
+
+			local pd = Instance.new("UIPadding")
+			pd.PaddingTop = UDim.new(0, 8)
+			pd.PaddingBottom = UDim.new(0, 8)
+			pd.PaddingLeft = UDim.new(0, 10)
+			pd.PaddingRight = UDim.new(0, 10)
+			pd.Parent = f
+
+			local ls = Instance.new("UIListLayout")
+			ls.FillDirection = Enum.FillDirection.Vertical
+			ls.Padding = UDim.new(0, 2)
+			ls.SortOrder = Enum.SortOrder.LayoutOrder
+			ls.Parent = f
+
+			local function addLabel(name, order, color, textsize)
+				local l = Instance.new("TextLabel")
+				l.Name = name
+				l.Size = UDim2.new(1, 0, 0, 0)
+				l.AutomaticSize = Enum.AutomaticSize.Y
+				l.BackgroundTransparency = 1
+				l.Font = Enum.Font.Gotham
+				l.TextSize = textsize or 12
+				l.TextColor3 = color or scheme.Font
+				l.TextXAlignment = Enum.TextXAlignment.Left
+				l.TextWrapped = true
+				l.Text = ""
+				l.LayoutOrder = order
+				l.Visible = false
+				l.Parent = f
+				return l
+			end
+
+			local function addDivider(order)
+				local d = Instance.new("Frame")
+				d.Size = UDim2.new(1, 0, 0, 1)
+				d.BackgroundColor3 = scheme.Outline
+				d.BackgroundTransparency = 0.5
+				d.BorderSizePixel = 0
+				d.LayoutOrder = order
+				d.Visible = false
+				d.Parent = f
+				return d
+			end
+
+			Globals.HUDRoomLabel = addLabel("RoomLabel", 2, scheme.Accent, 14)
+			Globals.HUDRoomDivider = addDivider(3)
+			Globals.HUDStatsLabel = addLabel("StatsLabel", 12, scheme.Accent, 14)
+			Globals.HUDStatsDivider = addDivider(13)
+			Globals.HUDStatsValue = addLabel("StatsValue", 14, scheme.Font, 11)
+			Globals.HEntityLabel = addLabel("EntityLabel", 22, scheme.Accent, 14)
+			Globals.HEntityDivider = addDivider(23)
+			Globals.HEntityValue = addLabel("EntityValue", 24, scheme.Font, 11)
+
+			Globals.HUDScreen = sg
+			Globals.HUDFrame = f
+		end
+
+		Globals.HUDScreen.Enabled = true
+
+		local opacity = 0.7
+		pcall(function() opacity = Options.HUDOpacity.Value end)
+		local textSize = 13
+		pcall(function() textSize = Options.HUDTextSize.Value end)
 
 		Globals.HUDFrame.BackgroundTransparency = 1 - opacity
-
-		local bgColor = GetSchemeColor("BackgroundColor", Color3.fromRGB(20, 20, 20))
-		local accentColor = GetSchemeColor("AccentColor", Color3.fromRGB(0, 85, 255))
-		local fontColor = GetSchemeColor("FontColor", Color3.fromRGB(255, 255, 255))
-		local outlineColor = GetSchemeColor("OutlineColor", Color3.fromRGB(50, 50, 50))
-
-		Globals.HUDFrame.BackgroundColor3 = bgColor
-		local strokeObj = Globals.HUDFrame:FindFirstChildOfClass("UIStroke")
-		if strokeObj then strokeObj.Color = outlineColor end
 
 		local showRoom = Toggles.ShowActualRoomToggle.Value
 		local showStats = Toggles.ShowStatisticsToggle.Value
 		local showEntities = Toggles.ShowSpawnedEntitiesToggle.Value
 
-		if Globals.HUDRoomTitle then
-			Globals.HUDRoomTitle.Visible = showRoom
-			Globals.HUDRoomTitle.TextSize = textSize * dpi
-			Globals.HUDRoomTitle.TextColor3 = accentColor
-			Globals.HUDRoomTitle.Font = font
-		end
-		if Globals.HUDRoomDivider then
-			Globals.HUDRoomDivider.Visible = showRoom
-			Globals.HUDRoomDivider.BackgroundColor3 = outlineColor
-		end
-		if Globals.HUDRoomValue then
-			Globals.HUDRoomValue.Visible = showRoom
-			Globals.HUDRoomValue.TextSize = textSize * dpi
-			Globals.HUDRoomValue.TextColor3 = fontColor
-			Globals.HUDRoomValue.Font = font
+		if Globals.HUDRoomLabel then
+			Globals.HUDRoomLabel.Visible = showRoom
+			Globals.HUDRoomLabel.TextSize = textSize
 			if showRoom then
-				local currentRoom = LocalPlayer:GetAttribute("CurrentRoom")
-				Globals.HUDRoomValue.Text = currentRoom and tostring(currentRoom) or "?"
+				local cr = LocalPlayer:GetAttribute("CurrentRoom")
+				Globals.HUDRoomLabel.Text = tostring(cr or "?")
 			end
 		end
+		if Globals.HUDRoomDivider then Globals.HUDRoomDivider.Visible = showRoom end
 
-		if Globals.HUDStatsTitle then
-			Globals.HUDStatsTitle.Visible = showStats
-			Globals.HUDStatsTitle.TextSize = textSize * dpi
-			Globals.HUDStatsTitle.TextColor3 = accentColor
-			Globals.HUDStatsTitle.Font = font
+		if Globals.HUDStatsLabel then
+			Globals.HUDStatsLabel.Visible = showStats
+			Globals.HUDStatsLabel.TextSize = textSize
 		end
-		if Globals.HUDStatsDivider then
-			Globals.HUDStatsDivider.Visible = showStats
-			Globals.HUDStatsDivider.BackgroundColor3 = outlineColor
-		end
+		if Globals.HUDStatsDivider then Globals.HUDStatsDivider.Visible = showStats end
 		if Globals.HUDStatsValue then
 			Globals.HUDStatsValue.Visible = showStats
-			Globals.HUDStatsValue.TextSize = (textSize - 1) * dpi
-			Globals.HUDStatsValue.TextColor3 = fontColor
-			Globals.HUDStatsValue.Font = font
+			Globals.HUDStatsValue.TextSize = textSize - 2
 			if showStats then
 				local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
 				local mem = math.floor(collectgarbage("count"))
@@ -2024,44 +1855,35 @@ Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
 			end
 		end
 
-		if Globals.HEntityTitle then
-			Globals.HEntityTitle.Visible = showEntities
-			Globals.HEntityTitle.TextSize = textSize * dpi
-			Globals.HEntityTitle.TextColor3 = accentColor
-			Globals.HEntityTitle.Font = font
+		if Globals.HEntityLabel then
+			Globals.HEntityLabel.Visible = showEntities
+			Globals.HEntityLabel.TextSize = textSize
 		end
-		if Globals.HEntityDivider then
-			Globals.HEntityDivider.Visible = showEntities
-			Globals.HEntityDivider.BackgroundColor3 = outlineColor
-		end
+		if Globals.HEntityDivider then Globals.HEntityDivider.Visible = showEntities end
 		if Globals.HEntityValue then
 			Globals.HEntityValue.Visible = showEntities
-			Globals.HEntityValue.TextSize = (textSize - 1) * dpi
-			Globals.HEntityValue.TextColor3 = fontColor
-			Globals.HEntityValue.Font = font
+			Globals.HEntityValue.TextSize = textSize - 2
 			if showEntities then
 				local lines = {}
-				for _, Entity in Services.Workspace:GetChildren() do
-					local entityData = Entities[Entity.Name]
-					if entityData and Entity.PrimaryPart then
-						local ok, dist = pcall(function()
-							return math.floor(LocalPlayer:DistanceFromCharacter(Entity.PrimaryPart.Position))
+				for _, E in Services.Workspace:GetChildren() do
+					local ed = Entities[E.Name]
+					if ed and E.PrimaryPart then
+						local ok, d = pcall(function()
+							return math.floor(LocalPlayer:DistanceFromCharacter(E.PrimaryPart.Position))
 						end)
-						if ok then
-							table.insert(lines, string.format("%s  [%dm]", entityData.Alias, dist))
-						end
+						if ok then table.insert(lines, string.format("%s  [%dm]", ed.Alias, d)) end
 					end
 				end
 				Globals.HEntityValue.Text = #lines > 0 and table.concat(lines, "\n") or "None"
 			end
 		end
 
-		local totalH = 16 * dpi
-		if showRoom then totalH = totalH + 14 * dpi + 18 * dpi + 6 * dpi end
-		if showStats and Globals.HUDStatsValue then totalH = totalH + 14 * dpi + Globals.HUDStatsValue.TextBounds.Y + 6 * dpi end
-		if showEntities and Globals.HEntityValue then totalH = totalH + 14 * dpi + Globals.HEntityValue.TextBounds.Y + 6 * dpi end
-		if totalH < 44 * dpi then totalH = 44 * dpi end
-		Globals.HUDFrame.Size = UDim2.new(0, 220 * dpi, 0, totalH)
+		local h = 16
+		if showRoom then h = h + 20 end
+		if showStats and Globals.HUDStatsValue then h = h + 18 + Globals.HUDStatsValue.TextBounds.Y end
+		if showEntities and Globals.HEntityValue then h = h + 18 + Globals.HEntityValue.TextBounds.Y end
+		if h < 44 then h = 44 end
+		Globals.HUDFrame.Size = UDim2.new(0, 220, 0, h)
 	end)
 end)
 
