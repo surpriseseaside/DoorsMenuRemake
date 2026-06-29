@@ -1562,6 +1562,7 @@ Groupboxes.Visuals_Camera:AddToggle("RemoveCameraBobbing", {
 })
 Groupboxes.Visuals_Camera:AddToggle("RemoveCutscenes", { Text = "Remove Cutscenes", Default = false, Tooltip = "Removes all non-necessary cutscenes." })
 Groupboxes.Visuals_Camera:AddToggle("RemoveCameraFog", { Text = "Remove Fog", Default = false, Tooltip = "Removes all fog effects from the camera." })
+Groupboxes.Visuals_Camera:AddToggle("RemoveShaders", { Text = "Remove Shaders", Default = false, Tooltip = "Enables fullbright by removing shadows and lighting effects." })
 Groupboxes.Visuals_Camera:AddDivider()
 Groupboxes.Visuals_Camera:AddToggle("ThirdPersonToggle", { Text = "Third Person", Default = false, Tooltip = "Zooms out your camera, allowing you to see your character from behind." })
 Toggles.ThirdPersonToggle:AddKeyPicker("ThirdPersonKeybind", { Text = "Third Person", Default = "T", Mode = "Toggle", SyncToggleState = true })
@@ -1596,6 +1597,43 @@ Toggles.RemoveCameraFog:OnChanged(function(Value)
 	Services.Lighting.FogEnd = Value and 10000000 or Globals.OldFog
 	for _, Object in Globals.FogInstances do
 		Object.Density = Value and 0 or Object:GetAttribute("Density_Old")
+	end
+end)
+Toggles.RemoveShaders:OnChanged(function(Value)
+	if Value then
+		Globals.OldBrightness = Services.Lighting.Brightness
+		Globals.OldClockTime = Services.Lighting.ClockTime
+		Globals.OldGlobalShadows = Services.Lighting.GlobalShadows
+		Globals.OldOutdoorAmbient = Services.Lighting.OutdoorAmbient
+		Globals.OldEnvDiffuse = Services.Lighting.EnvironmentDiffuseScale
+		Globals.OldEnvSpecular = Services.Lighting.EnvironmentSpecularScale
+		Globals.OldShadowSoftness = Services.Lighting.ShadowSoftness
+
+		Services.Lighting.Brightness = 2
+		Services.Lighting.ClockTime = 14
+		Services.Lighting.GlobalShadows = false
+		Services.Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+		Services.Lighting.EnvironmentDiffuseScale = 1
+		Services.Lighting.EnvironmentSpecularScale = 1
+		Services.Lighting.ShadowSoftness = 0
+	else
+		if Globals.OldBrightness then Services.Lighting.Brightness = Globals.OldBrightness end
+		if Globals.OldClockTime then Services.Lighting.ClockTime = Globals.OldClockTime end
+		if Globals.OldGlobalShadows ~= nil then Services.Lighting.GlobalShadows = Globals.OldGlobalShadows end
+		if Globals.OldOutdoorAmbient then Services.Lighting.OutdoorAmbient = Globals.OldOutdoorAmbient end
+		if Globals.OldEnvDiffuse then Services.Lighting.EnvironmentDiffuseScale = Globals.OldEnvDiffuse end
+		if Globals.OldEnvSpecular then Services.Lighting.EnvironmentSpecularScale = Globals.OldEnvSpecular end
+		if Globals.OldShadowSoftness then Services.Lighting.ShadowSoftness = Globals.OldShadowSoftness end
+	end
+
+	for _, Object in Services.Lighting:GetChildren() do
+		if Object:IsA("Atmosphere") then
+			Object:SetAttribute("Density_Old_RemoveShaders", Object.Density)
+			Object.Density = Value and 0 or Object:GetAttribute("Density_Old_RemoveShaders")
+		end
+		if Object:IsA("BloomEffect") or Object:IsA("BlurEffect") or Object:IsA("ColorCorrectionEffect") or Object:IsA("SunRaysEffect") then
+			Object.Enabled = not Value
+		end
 	end
 end)
 Toggles.RemoveCutscenes:OnChanged(function(Value)
@@ -1980,7 +2018,7 @@ Groupboxes.Visuals_EntitySettings = Groupboxes.Visuals_RightTab:AddTab("Settings
 
 Groupboxes.Visuals_Entities:AddDropdown("EntityList", {
 	Text = "Entity List",
-	Values = { "Rush","Ambush","Eyes","Halt","Blitz","Lookman","Gloombat Swarm","A-60","A-120","Sally","Jeff the Killer","Groundskeeper","Monument","AR0xMBUSH","RNIUSHCG==" },
+	Values = { "Rush", "Ambush","Eyes","Halt","Blitz","Lookman","Gloombat Swarm","A-60","A-120","Sally","Jeff the Killer","Groundskeeper","Monument","AR0xMBUSH","RNIUSHCG==" },
 	Multi = true, AllowNull = true
 })
 Groupboxes.Visuals_Entities:AddToggle("NotifyEntities",    { Text = "Notify Entities",    Default = false, Tooltip = "Sends a notification when an entity spawns." })
