@@ -3007,7 +3007,7 @@ Functions.HandleCharacter = function(NewCharacter)
 		door = true, light = true, poster = true, decal = true,
 		hint = true, sign = true, label = true, text = true,
 		prompt = true, collision = true, floor = true, ground = true,
-		ceiling = true,床 = true,床头 = true,
+		ceiling = true,
 	}
 
 	Connections.AutoCrouch = Services.RunService.Stepped:Connect(function()
