@@ -1791,8 +1791,8 @@ Options.ObjectiveESPColor:OnChanged(function(Value)
 	end
 end)
 
-Groupboxes.Visuals_ESP_Toggles:AddToggle("DoorESPToggle",       { Text = "Doors",        Default = false, Tooltip = "Highlights the next door." })
-Groupboxes.Visuals_ESP_Toggles:AddToggle("NextDoorESPToggle",  { Text = "Next Door",    Default = false, Tooltip = "Highlights the closest door to your current position." })
+Groupboxes.Visuals_ESP_Toggles:AddToggle("DoorESPToggle",       { Text = "Doors",        Default = false, Tooltip = "Highlights the doors." })
+Groupboxes.Visuals_ESP_Toggles:AddToggle("NextDoorESPToggle",  { Text = "Next Door",    Default = false, Tooltip = "Highlights the next door (Main Door)." })
 Groupboxes.Visuals_ESP_Toggles:AddToggle("HidingSpotESPToggle", { Text = "Hiding Spots", Default = false, Tooltip = "Highlights places where you can hide from entities" })
 Groupboxes.Visuals_ESP_Toggles:AddToggle("PlayerESPToggle",     { Text = "Players",      Default = false, Tooltip = "Highlights other players." })
 Groupboxes.Visuals_ESP_Toggles:AddToggle("ChestESPToggle",      { Text = "Chests",       Default = false, Tooltip = "Highlights objects that can contain loot." })
@@ -1839,7 +1839,9 @@ Options.DoorESPColor:OnChanged(function(Value)
 end)
 
 local NextDoorESPData = {
-	CurrentESPDoor = nil,
+	CurrentTarget = nil,
+	CurrentDoor = nil,
+	ProxyPart = nil,
 	Connection = nil,
 }
 
@@ -1878,16 +1880,44 @@ Functions.UpdateNextDoorESP = function()
 		end
 	end
 
-	if closestDoor == NextDoorESPData.CurrentESPDoor then return end
+	if not closestDoor then return end
 
-	if NextDoorESPData.CurrentESPDoor then
-		Functions.RemoveESP(NextDoorESPData.CurrentESPDoor)
-		NextDoorESPData.CurrentESPDoor = nil
+	local doorPart
+	if closestDoor:IsA("Model") then
+		doorPart = closestDoor:FindFirstChild("HighlightPart") or closestDoor.PrimaryPart or closestDoor:FindFirstChildWhichIsA("BasePart", true)
+	elseif closestDoor:IsA("BasePart") then
+		doorPart = closestDoor
+	end
+	if not doorPart then return end
+
+	if closestDoor ~= NextDoorESPData.CurrentDoor then
+		if NextDoorESPData.CurrentTarget then
+			Functions.RemoveESP(NextDoorESPData.CurrentTarget)
+			NextDoorESPData.CurrentTarget = nil
+		end
+
+		if not NextDoorESPData.ProxyPart then
+			local p = Instance.new("Part")
+			p.Name = "NextDoorESP_Proxy"
+			p.Size = Vector3.new(1, 1, 1)
+			p.Transparency = 1
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.Anchored = true
+			p.Parent = Services.Workspace
+			Instance.new("Humanoid", p).Name = "HighlightHumanoid"
+			NextDoorESPData.ProxyPart = p
+		end
+
+		NextDoorESPData.ProxyPart.CFrame = doorPart.CFrame
+		NextDoorESPData.CurrentDoor = closestDoor
+		NextDoorESPData.CurrentTarget = NextDoorESPData.ProxyPart
+		Functions.AddESP({ Object = NextDoorESPData.ProxyPart, Text = "Next Door [" .. Functions.GetDoorNumber(closestDoor) .. "]", Color = Options.NextDoorESPColor.Value })
 	end
 
-	if closestDoor then
-		NextDoorESPData.CurrentESPDoor = closestDoor
-		Functions.AddESP({ Object = closestDoor, Text = "Next Door [" .. Functions.GetDoorNumber(closestDoor) .. "]", Color = Options.NextDoorESPColor.Value })
+	if NextDoorESPData.ProxyPart and NextDoorESPData.ProxyPart.Parent then
+		NextDoorESPData.ProxyPart.CFrame = doorPart.CFrame
 	end
 end
 
@@ -1903,15 +1933,20 @@ Toggles.NextDoorESPToggle:OnChanged(function(Value)
 			NextDoorESPData.Connection:Disconnect()
 			NextDoorESPData.Connection = nil
 		end
-		if NextDoorESPData.CurrentESPDoor then
-			Functions.RemoveESP(NextDoorESPData.CurrentESPDoor)
-			NextDoorESPData.CurrentESPDoor = nil
+		if NextDoorESPData.CurrentTarget then
+			Functions.RemoveESP(NextDoorESPData.CurrentTarget)
+			NextDoorESPData.CurrentTarget = nil
 		end
+		if NextDoorESPData.ProxyPart then
+			NextDoorESPData.ProxyPart:Destroy()
+			NextDoorESPData.ProxyPart = nil
+		end
+		NextDoorESPData.CurrentDoor = nil
 	end
 end)
 Options.NextDoorESPColor:OnChanged(function(Value)
-	if NextDoorESPData.CurrentESPDoor then
-		DoorsMenuRemake.ESPLibrary:UpdateObjectColor(NextDoorESPData.CurrentESPDoor, Value)
+	if NextDoorESPData.ProxyPart then
+		DoorsMenuRemake.ESPLibrary:UpdateObjectColor(NextDoorESPData.ProxyPart, Value)
 	end
 end)
 
