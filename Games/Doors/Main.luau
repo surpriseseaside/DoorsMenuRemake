@@ -1691,6 +1691,282 @@ Toggles.DisableEntityJumpscares:OnChanged(function(Value)
 	end
 end)
 
+Groupboxes.Visuals_HUD = Tabs.Visuals:AddLeftGroupbox("HUD")
+Groupboxes.Visuals_HUD:AddToggle("ShowActualRoomToggle", { Text = "Show Actual Room", Default = false, Tooltip = "Displays a movable HUD showing the current room." })
+Groupboxes.Visuals_HUD:AddToggle("ShowStatistics", { Text = "Show Statistics", Default = false, Tooltip = "Adds performance data to the HUD: memory, CPU, GPU, FPS, Ping." })
+Groupboxes.Visuals_HUD:AddDivider()
+Groupboxes.Visuals_HUD:AddToggle("ShowSpawnedEntities", { Text = "Show Spawned Entities", Default = false, Tooltip = "Shows a list of spawned entities with distance in the HUD." })
+
+do
+	local HUDContainer = Instance.new("ScreenGui")
+	HUDContainer.Name = DoorsMenuRemake.ESPLibrary:GenerateRandomString()
+	HUDContainer.Parent = GetHiddenContainer()
+	HUDContainer.DisplayOrder = 32766
+	HUDContainer.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	HUDContainer.ResetOnSpawn = false
+
+	local HUDFrame = Instance.new("Frame")
+	HUDFrame.Name = "HUDFrame"
+	HUDFrame.Parent = HUDContainer
+	HUDFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	HUDFrame.BackgroundTransparency = 0.3
+	HUDFrame.BorderSizePixel = 0
+	HUDFrame.Position = UDim2.new(0, 10, 0, 80)
+	HUDFrame.Size = UDim2.new(0, 260, 0, 60)
+	HUDFrame.Visible = false
+
+	local UICorner = Instance.new("UICorner")
+	UICorner.CornerRadius = UDim.new(0, 6)
+	UICorner.Parent = HUDFrame
+
+	local UIStroke = Instance.new("UIStroke")
+	UIStroke.Color = Library.Scheme.AccentColor
+	UIStroke.Thickness = 1
+	UIStroke.Transparency = 0.3
+	UIStroke.Parent = HUDFrame
+
+	local Padding = Instance.new("UIPadding")
+	Padding.PaddingTop = UDim.new(0, 6)
+	Padding.PaddingBottom = UDim.new(0, 6)
+	Padding.PaddingLeft = UDim.new(0, 8)
+	Padding.PaddingRight = UDim.new(0, 8)
+	Padding.Parent = HUDFrame
+
+	local Layout = Instance.new("UIListLayout")
+	Layout.Parent = HUDFrame
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0, 3)
+
+	local RoomLabel = Instance.new("TextLabel")
+	RoomLabel.Name = "RoomLabel"
+	RoomLabel.Parent = HUDFrame
+	RoomLabel.BackgroundTransparency = 1
+	RoomLabel.Size = UDim2.new(1, 0, 0, 16)
+	RoomLabel.Text = "Room: ???"
+	RoomLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	RoomLabel.TextSize = 14
+	RoomLabel.Font = Enum.Font.GothamBold
+	RoomLabel.TextXAlignment = Enum.TextXAlignment.Left
+	RoomLabel.LayoutOrder = 1
+	RoomLabel.Visible = false
+
+	local StatsLabel = Instance.new("TextLabel")
+	StatsLabel.Name = "StatsLabel"
+	StatsLabel.Parent = HUDFrame
+	StatsLabel.BackgroundTransparency = 1
+	StatsLabel.Size = UDim2.new(1, 0, 0, 60)
+	StatsLabel.Text = ""
+	StatsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	StatsLabel.TextSize = 12
+	StatsLabel.Font = Enum.Font.Code
+	StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
+	StatsLabel.TextWrapped = true
+	StatsLabel.LayoutOrder = 2
+	StatsLabel.Visible = false
+
+	local EntitiesFrame = Instance.new("Frame")
+	EntitiesFrame.Name = "EntitiesFrame"
+	EntitiesFrame.Parent = HUDFrame
+	EntitiesFrame.BackgroundTransparency = 1
+	EntitiesFrame.Size = UDim2.new(1, 0, 0, 120)
+	EntitiesFrame.LayoutOrder = 3
+	EntitiesFrame.Visible = false
+
+	local EntScroll = Instance.new("ScrollingFrame")
+	EntScroll.Name = "EntScroll"
+	EntScroll.Parent = EntitiesFrame
+	EntScroll.BackgroundTransparency = 1
+	EntScroll.Size = UDim2.new(1, 0, 1, 0)
+	EntScroll.ScrollBarThickness = 3
+	EntScroll.ScrollBarImageColor3 = Library.Scheme.AccentColor
+	EntScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	EntScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	EntScroll.BorderSizePixel = 0
+
+	local EntLayout = Instance.new("UIListLayout")
+	EntLayout.Parent = EntScroll
+	EntLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	EntLayout.Padding = UDim.new(0, 2)
+
+	local function CreateDragger(Frame)
+		local dragging = false
+		local dragInput, dragStart, startPos
+
+		Frame.InputBegan:Connect(function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				dragStart = Input.Position
+				startPos = Frame.Position
+				Input.Changed:Connect(function()
+					if Input.UserInputState == Enum.UserInputState.End then dragging = false end
+				end)
+			end
+		end)
+
+		Frame.InputChanged:Connect(function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
+				dragInput = Input
+			end
+		end)
+
+		Services.UserInputService.InputChanged:Connect(function(Input)
+			if Input == dragInput and dragging then
+				local Delta = Input.Position - dragStart
+				Frame.Position = UDim2.new(
+					startPos.X.Scale, startPos.X.Offset + Delta.X,
+					startPos.Y.Scale, startPos.Y.Offset + Delta.Y
+				)
+			end
+		end)
+	end
+	CreateDragger(HUDFrame)
+
+	Globals.HUDFrame = HUDFrame
+	Globals.HUDStatsLabel = StatsLabel
+	Globals.HUDRoomLabel = RoomLabel
+	Globals.HUDEntitiesFrame = EntitiesFrame
+	Globals.HUDContainer = HUDContainer
+	Globals.HUDFpsCounter = 0
+	Globals.HUDLastFpsTime = tick()
+	Globals.HUDCurrentFps = 0
+end
+
+Toggles.ShowActualRoomToggle:OnChanged(function(Value)
+	if Value then
+		Globals.HUDFrame.Visible = true
+		Globals.HUDRoomLabel.Visible = true
+	else
+		Globals.HUDRoomLabel.Visible = false
+		if not Toggles.ShowStatistics.Value and not Toggles.ShowSpawnedEntities.Value then
+			Globals.HUDFrame.Visible = false
+		end
+	end
+end)
+
+Toggles.ShowStatistics:OnChanged(function(Value)
+	if Value then
+		Globals.HUDFrame.Visible = true
+		Globals.HUDStatsLabel.Visible = true
+	else
+		Globals.HUDStatsLabel.Visible = false
+		if not Toggles.ShowActualRoomToggle.Value and not Toggles.ShowSpawnedEntities.Value then
+			Globals.HUDFrame.Visible = false
+		end
+	end
+end)
+
+Toggles.ShowSpawnedEntities:OnChanged(function(Value)
+	if Value then
+		Globals.HUDFrame.Visible = true
+		Globals.HUDEntitiesFrame.Visible = true
+	else
+		Globals.HUDEntitiesFrame.Visible = false
+		if not Toggles.ShowActualRoomToggle.Value and not Toggles.ShowStatistics.Value then
+			Globals.HUDFrame.Visible = false
+		end
+	end
+end)
+
+Connections.HUDUpdate = Services.RunService.Heartbeat:Connect(function()
+	if not (Toggles.ShowActualRoomToggle.Value or Toggles.ShowStatistics.Value or Toggles.ShowSpawnedEntities.Value) then
+		return
+	end
+
+	if Toggles.ShowActualRoomToggle.Value then
+		local CurrentRoom = LocalPlayer:GetAttribute("CurrentRoom")
+		local RoomText = CurrentRoom and ("Room: " .. tostring(CurrentRoom)) or "Room: ???"
+		Globals.HUDRoomLabel.Text = RoomText
+	end
+
+	if Toggles.ShowStatistics.Value then
+		Globals.HUDFpsCounter += 1
+		local Now = tick()
+		if Now - Globals.HUDLastFpsTime >= 1 then
+			Globals.HUDCurrentFps = Globals.HUDFpsCounter
+			Globals.HUDFpsCounter = 0
+			Globals.HUDLastFpsTime = Now
+		end
+
+		local StatsText = ""
+
+		pcall(function()
+			StatsText = StatsText .. "FPS: " .. tostring(Globals.HUDCurrentFps)
+		end)
+
+		pcall(function()
+			local Ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
+			StatsText = StatsText .. "\nPing: " .. Ping .. " ms"
+		end)
+
+		pcall(function()
+			local Mem = math.floor(Services.Stats:GetTotalMemoryUsageMb() * 10) / 10
+			StatsText = StatsText .. "\nMemory: " .. Mem .. " MB"
+		end)
+
+		pcall(function()
+			local StatsItems = Services.Stats:GetPerformanceStats()
+			for _, StatItem in StatsItems do
+				if StatItem.Name == "CPU" then
+					StatsText = StatsText .. "\nCPU: " .. math.floor(StatItem:GetValue() * 10) / 10 .. "%"
+				elseif StatItem.Name == "GPU" then
+					StatsText = StatsText .. "\nGPU: " .. math.floor(StatItem:GetValue() * 10) / 10 .. "%"
+				end
+			end
+		end)
+
+		Globals.HUDStatsLabel.Text = StatsText
+	end
+
+	if Toggles.ShowSpawnedEntities.Value then
+		local Scroll = Globals.HUDEntitiesFrame:FindFirstChild("EntScroll")
+		if Scroll then
+			for _, Child in Scroll:GetChildren() do
+				if Child:IsA("TextLabel") then Child:Destroy() end
+			end
+
+			local Index = 0
+			for _, Entity in Services.Workspace:GetChildren() do
+				if Entities[Entity.Name] and Entity.PrimaryPart then
+					local Distance = math.huge
+					pcall(function()
+						Distance = math.floor(LocalPlayer:DistanceFromCharacter(Entity.PrimaryPart.Position))
+					end)
+
+					if Distance < 10000 then
+						Index += 1
+						local Alias = Entities[Entity.Name].Alias
+
+						local EntLabel = Instance.new("TextLabel")
+						EntLabel.Parent = Scroll
+						EntLabel.BackgroundTransparency = 1
+						EntLabel.Size = UDim2.new(1, 0, 0, 16)
+						EntLabel.Text = Alias .. "  [" .. tostring(Distance) .. "m]"
+						EntLabel.TextColor3 = Distance < 50 and Color3.fromRGB(255, 80, 80) or (Distance < 100 and Color3.fromRGB(255, 200, 80) or Color3.fromRGB(200, 200, 200))
+						EntLabel.TextSize = 12
+						EntLabel.Font = Enum.Font.Gotham
+						EntLabel.TextXAlignment = Enum.TextXAlignment.Left
+						EntLabel.LayoutOrder = Index
+					end
+				end
+			end
+
+			if Index == 0 then
+				local NoEnt = Instance.new("TextLabel")
+				NoEnt.Parent = Scroll
+				NoEnt.BackgroundTransparency = 1
+				NoEnt.Size = UDim2.new(1, 0, 0, 16)
+				NoEnt.Text = "No entities nearby"
+				NoEnt.TextColor3 = Color3.fromRGB(120, 120, 120)
+				NoEnt.TextSize = 12
+				NoEnt.Font = Enum.Font.Gotham
+				NoEnt.TextXAlignment = Enum.TextXAlignment.Left
+				NoEnt.LayoutOrder = 1
+			end
+		end
+	end
+end)
+
 Groupboxes.Visuals_RightTab     = Tabs.Visuals:AddRightTabbox("Entities / Settings")
 Groupboxes.Visuals_Entities     = Groupboxes.Visuals_RightTab:AddTab("Entities")
 Groupboxes.Visuals_EntitySettings = Groupboxes.Visuals_RightTab:AddTab("Settings")
@@ -3136,7 +3412,7 @@ Functions.HandleCharacter = function(NewCharacter)
 			Functions.Notify({
 				Title = "Auto Crouch",
 				Time = 12,
-				Body = "Make sure 'Toggle Crouch' is enabled in the game settings (press Tab to open settings panel). If it's off, the C key won't toggle crouch and Auto Crouch won't work correctly."
+				Body = "Make sure 'Toggle Crouch' is disabled in the game settings (press Tab to open settings panel). If it's off, the C key won't toggle crouch and Auto Crouch won't work correctly."
 			})
 		else
 			AutoCrouch:Disable()
@@ -4790,6 +5066,10 @@ Library:OnUnload(function()
 	CollisionClone:Destroy()
 	CollisionPartClone:Destroy()
 	DoorsMenuRemake.ESPLibrary:Unload()
+
+	if Globals.HUDContainer then
+		Globals.HUDContainer:Destroy()
+	end
 
 	if Main_Game then
 		Main_Game.fovtarget   = 70
