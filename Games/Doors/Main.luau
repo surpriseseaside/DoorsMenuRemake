@@ -1841,6 +1841,7 @@ end)
 local NextDoorESPData = {
 	CurrentTarget = nil,
 	CurrentDoor = nil,
+	ClaimedDoor = nil,
 	ProxyPart = nil,
 	Connection = nil,
 }
@@ -1896,6 +1897,15 @@ Functions.UpdateNextDoorESP = function()
 			NextDoorESPData.CurrentTarget = nil
 		end
 
+		if NextDoorESPData.ClaimedDoor and NextDoorESPData.ClaimedDoor ~= closestDoor then
+			if Toggles.DoorESPToggle.Value then
+				Functions.AddESP({ Object = NextDoorESPData.ClaimedDoor, Text = "Door " .. Functions.GetDoorNumber(NextDoorESPData.ClaimedDoor), Color = Options.DoorESPColor.Value }, true)
+			end
+		end
+
+		Functions.RemoveESP(closestDoor)
+		NextDoorESPData.ClaimedDoor = closestDoor
+
 		if not NextDoorESPData.ProxyPart then
 			local p = Instance.new("Part")
 			p.Name = "NextDoorESP_Proxy"
@@ -1936,6 +1946,12 @@ Toggles.NextDoorESPToggle:OnChanged(function(Value)
 		if NextDoorESPData.CurrentTarget then
 			Functions.RemoveESP(NextDoorESPData.CurrentTarget)
 			NextDoorESPData.CurrentTarget = nil
+		end
+		if NextDoorESPData.ClaimedDoor then
+			if Toggles.DoorESPToggle.Value then
+				Functions.AddESP({ Object = NextDoorESPData.ClaimedDoor, Text = "Door " .. Functions.GetDoorNumber(NextDoorESPData.ClaimedDoor), Color = Options.DoorESPColor.Value }, true)
+			end
+			NextDoorESPData.ClaimedDoor = nil
 		end
 		if NextDoorESPData.ProxyPart then
 			NextDoorESPData.ProxyPart:Destroy()
