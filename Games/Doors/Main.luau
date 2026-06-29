@@ -1792,6 +1792,7 @@ Options.ObjectiveESPColor:OnChanged(function(Value)
 end)
 
 Groupboxes.Visuals_ESP_Toggles:AddToggle("DoorESPToggle",       { Text = "Doors",        Default = false, Tooltip = "Highlights the next door." })
+Groupboxes.Visuals_ESP_Toggles:AddToggle("NextDoorESPToggle",  { Text = "Next Door",    Default = false, Tooltip = "Highlights the closest door to your current position." })
 Groupboxes.Visuals_ESP_Toggles:AddToggle("HidingSpotESPToggle", { Text = "Hiding Spots", Default = false, Tooltip = "Highlights places where you can hide from entities" })
 Groupboxes.Visuals_ESP_Toggles:AddToggle("PlayerESPToggle",     { Text = "Players",      Default = false, Tooltip = "Highlights other players." })
 Groupboxes.Visuals_ESP_Toggles:AddToggle("ChestESPToggle",      { Text = "Chests",       Default = false, Tooltip = "Highlights objects that can contain loot." })
@@ -1801,6 +1802,7 @@ Groupboxes.Visuals_ESP_Toggles:AddToggle("EntityESPToggle",     { Text = "Entiti
 Groupboxes.Visuals_ESP_Toggles:AddToggle("LadderESPToggle",     { Text = "Ladders",      Default = false, Tooltip = "Highlights ladders that can be used to disable the anticheat." })
 
 Toggles.DoorESPToggle:AddColorPicker("DoorESPColor",           { Text = "Doors",        Default = Color3.fromRGB(0, 200, 255),  Transparency = 0 })
+Toggles.NextDoorESPToggle:AddColorPicker("NextDoorESPColor",   { Text = "Next Door",    Default = Color3.fromRGB(255, 170, 0),  Transparency = 0 })
 Toggles.HidingSpotESPToggle:AddColorPicker("HidingSpotESPColor", { Text = "Hiding Spots", Default = Color3.fromRGB(255, 170, 0),  Transparency = 0 })
 Toggles.PlayerESPToggle:AddColorPicker("PlayerESPColor",       { Text = "Players",      Default = Color3.fromRGB(255, 255, 255), Transparency = 0 })
 Toggles.ChestESPToggle:AddColorPicker("ChestESPColor",         { Text = "Chests",       Default = Color3.fromRGB(255, 255, 0),   Transparency = 0 })
@@ -1834,6 +1836,130 @@ Toggles.DoorESPToggle:OnChanged(function(Value)
 end)
 Options.DoorESPColor:OnChanged(function(Value)
 	for _, Object in Objects.Doors do DoorsMenuRemake.ESPLibrary:UpdateObjectColor(Object, Value) end
+end)
+
+local NextDoorESPData = {
+	CurrentESPDoor = nil,
+	Highlight = nil,
+	Billboard = nil,
+	Connection = nil,
+}
+
+Functions.UpdateNextDoorESP = function()
+	if not Toggles.NextDoorESPToggle.Value then
+		if NextDoorESPData.Highlight and NextDoorESPData.Highlight.Parent then NextDoorESPData.Highlight:Destroy() end
+		NextDoorESPData.Highlight = nil
+		if NextDoorESPData.Billboard and NextDoorESPData.Billboard.Parent then NextDoorESPData.Billboard:Destroy() end
+		NextDoorESPData.Billboard = nil
+		NextDoorESPData.CurrentESPDoor = nil
+		return
+	end
+
+	local root = Character and Character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local closestDoor = nil
+	local closestDist = math.huge
+
+	for _, Object in Objects.Doors do
+		local doorPart
+		if Object:IsA("Model") then
+			doorPart = Object:FindFirstChild("HighlightPart") or Object.PrimaryPart or Object:FindFirstChildWhichIsA("BasePart", true)
+		elseif Object:IsA("BasePart") then
+			doorPart = Object
+		end
+		if doorPart then
+			local d = (root.Position - doorPart.Position).Magnitude
+			if d < closestDist then
+				closestDist = d
+				closestDoor = Object
+			end
+		end
+	end
+
+	if closestDoor == NextDoorESPData.CurrentESPDoor then return end
+
+	if NextDoorESPData.Highlight and NextDoorESPData.Highlight.Parent then NextDoorESPData.Highlight:Destroy() end
+	NextDoorESPData.Highlight = nil
+	if NextDoorESPData.Billboard and NextDoorESPData.Billboard.Parent then NextDoorESPData.Billboard:Destroy() end
+	NextDoorESPData.Billboard = nil
+	NextDoorESPData.CurrentESPDoor = nil
+
+	if not closestDoor then return end
+
+	NextDoorESPData.CurrentESPDoor = closestDoor
+
+	local color = Options.NextDoorESPColor.Value
+
+	local h = Instance.new("Highlight")
+	h.Name = "NextDoor_ESP"
+	h.Adornee = closestDoor
+	h.FillColor = color
+	h.OutlineColor = color
+	h.FillTransparency = 0.45
+	h.OutlineTransparency = 0
+	h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	h.Parent = closestDoor
+	NextDoorESPData.Highlight = h
+
+	local mainPart
+	if closestDoor:IsA("Model") then
+		mainPart = closestDoor:FindFirstChild("HighlightPart") or closestDoor.PrimaryPart or closestDoor:FindFirstChildWhichIsA("BasePart", true)
+	elseif closestDoor:IsA("BasePart") then
+		mainPart = closestDoor
+	end
+
+	if mainPart then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "NextDoor_Label"
+		bb.Size = UDim2.new(0, 250, 0, 50)
+		bb.StudsOffset = Vector3.new(0, 4, 0)
+		bb.AlwaysOnTop = true
+		bb.Adornee = mainPart
+		bb.Parent = closestDoor
+		NextDoorESPData.Billboard = bb
+
+		local tl = Instance.new("TextLabel")
+		tl.BackgroundTransparency = 1
+		tl.Size = UDim2.fromScale(1, 1)
+		tl.Font = Enum.Font.GothamBold
+		tl.TextScaled = true
+		tl.TextColor3 = color
+		tl.TextStrokeTransparency = 0
+		tl.TextStrokeColor3 = Color3.new(0, 0, 0)
+		tl.Text = string.format("Next Door [%s]", Functions.GetDoorNumber(closestDoor))
+		tl.Parent = bb
+	end
+end
+
+Toggles.NextDoorESPToggle:OnChanged(function(Value)
+	if Value then
+		if not NextDoorESPData.Connection then
+			NextDoorESPData.Connection = Services.RunService.RenderStepped:Connect(function()
+				pcall(Functions.UpdateNextDoorESP)
+			end)
+		end
+	else
+		if NextDoorESPData.Connection then
+			NextDoorESPData.Connection:Disconnect()
+			NextDoorESPData.Connection = nil
+		end
+		if NextDoorESPData.Highlight and NextDoorESPData.Highlight.Parent then NextDoorESPData.Highlight:Destroy() end
+		NextDoorESPData.Highlight = nil
+		if NextDoorESPData.Billboard and NextDoorESPData.Billboard.Parent then NextDoorESPData.Billboard:Destroy() end
+		NextDoorESPData.Billboard = nil
+		NextDoorESPData.CurrentESPDoor = nil
+	end
+end)
+Options.NextDoorESPColor:OnChanged(function(Value)
+	if NextDoorESPData.Highlight then
+		NextDoorESPData.Highlight.FillColor = Value
+		NextDoorESPData.Highlight.OutlineColor = Value
+	end
+	if NextDoorESPData.Billboard then
+		local tl = NextDoorESPData.Billboard:FindFirstChildOfClass("TextLabel")
+		if tl then tl.TextColor3 = Value end
+	end
 end)
 
 Toggles.HidingSpotESPToggle:OnChanged(function(Value)
