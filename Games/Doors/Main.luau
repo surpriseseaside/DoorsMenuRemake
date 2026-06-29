@@ -2992,101 +2992,154 @@ Functions.HandleCharacter = function(NewCharacter)
 		end)
 	end
 
-	Globals.LastAutoCrouch = tick()
-	Globals.AutoCrouchIsCrouching = false
+	local AutoCrouch = {}
+	AutoCrouch.Connection = nil
+	AutoCrouch.RespawnConn = nil
+	AutoCrouch.IsCrouching = false
 
-	local function SendCrouchKeyDown()
+	function AutoCrouch:SendCrouchKeyDown()
 		pcall(function()
 			game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.C, false, game)
 		end)
 	end
 
-	local function SendCrouchKeyUp()
+	function AutoCrouch:SendCrouchKeyUp()
 		pcall(function()
 			game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.C, false, game)
 		end)
 	end
 
-	local function Crouch()
-		if Globals.AutoCrouchIsCrouching then return end
-		Globals.AutoCrouchIsCrouching = true
-		SendCrouchKeyDown()
+	function AutoCrouch:Crouch()
+		if self.IsCrouching then return end
+		self.IsCrouching = true
+		self:SendCrouchKeyDown()
 	end
 
-	local function Uncrouch()
-		if not Globals.AutoCrouchIsCrouching then return end
-		Globals.AutoCrouchIsCrouching = false
-		SendCrouchKeyUp()
+	function AutoCrouch:Uncrouch()
+		if not self.IsCrouching then return end
+		self.IsCrouching = false
+		self:SendCrouchKeyUp()
 	end
 
-	Connections.AutoCrouchRespawn = LocalPlayer.CharacterAdded:Connect(function()
-		Globals.AutoCrouchIsCrouching = false
-	end)
-	table.insert(Connections, Connections.AutoCrouchRespawn)
+	local IgnoreNames = {
+		door = true, light = true, poster = true, decal = true,
+		hint = true, sign = true, prompt = true, glass = true,
+		window = true, carpet = true, rug = true, painting = true,
+		picture = true, candle = true, curtain = true, banner = true,
+		ui = true, label = true, effect = true, particle = true,
+		beam = true, attachment = true, cling = true, sticker = true,
+		trail = true, dirt = true, grass = true, foliage = true,
+	}
 
-	Connections.AutoCrouch = Services.RunService.Stepped:Connect(function()
-		if not Toggles.AutoCrouchToggle.Value then
-			Uncrouch()
-			return
-		end
-		if not Character or not RootPart then return end
+	local function IsObstructionRelevant(instance, hitHeight, hrpY)
+		if instance:IsA("Terrain") then return false end
+		if instance.Transparency >= 0.35 then return false end
+		if not instance:IsA("BasePart") then return false end
+		if instance.Size.Y <= 0.3 then return false end
+		if instance.Massless and not instance.Anchored then return false end
 
-		local humanoid = Character:FindFirstChild("Humanoid")
-		if not humanoid or humanoid.Health <= 0 then return end
-
-		if tick() - Globals.LastAutoCrouch < 0.05 then return end
-		Globals.LastAutoCrouch = tick()
-
-		if Humanoid.MoveDirection == Vector3.zero then
-			Uncrouch()
-			return
-		end
-
-		local shouldCrouch = false
-		local params = RaycastParams.new()
-		params.FilterDescendantsInstances = { Character }
-		params.FilterType = Enum.RaycastFilterType.Exclude
-
-		local forward = RootPart.CFrame.LookVector * Options.AutoCrouchDistance.Value
-
-		local highResult = Services.Workspace:Raycast(
-			RootPart.Position + Vector3.new(0, 4, 0),
-			forward,
-			params
-		)
-
-		local lowResult = Services.Workspace:Raycast(
-			RootPart.Position + Vector3.new(0, 1.5, 0),
-			forward,
-			params
-		)
-
-		if highResult and not lowResult then
-			local inst = highResult.Instance
-			local nameLower = inst.Name:lower()
-			if not inst:IsA("Terrain") and inst.Transparency < 0.5 then
-				if not nameLower:find("door") and not nameLower:find("light") and not nameLower:find("poster") and not nameLower:find("decal") and not nameLower:find("hint") and not nameLower:find("sign") and not nameLower:find("prompt") then
-					shouldCrouch = true
-				end
+		local nameLower = instance.Name:lower()
+		for pattern in pairs(IgnoreNames) do
+			if nameLower:find(pattern) then
+				return false
 			end
 		end
 
-		if shouldCrouch then
-			Crouch()
-		else
-			Uncrouch()
+		return hitHeight > 0.5 and hitHeight < 4.0
+	end
+
+	function AutoCrouch:Enable()
+		if self.Connection then return end
+		self.IsCrouching = false
+		self.Connection = Services.RunService.Stepped:Connect(function()
+			if not Toggles.AutoCrouchToggle.Value then
+				self:Uncrouch()
+				return
+			end
+			local character = LocalPlayer.Character
+			if not character then return end
+			local hrp = character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character:FindFirstChild("Humanoid")
+			if not hrp or not humanoid or humanoid.Health <= 0 then return end
+
+			if humanoid.MoveDirection == Vector3.zero then
+				self:Uncrouch()
+				return
+			end
+
+			local shouldCrouch = false
+			local detectDist = Options.AutoCrouchDistance.Value
+			local hrpPos = hrp.Position
+			local lookCF = CFrame.new(Vector3.zero, hrp.CFrame.LookVector)
+			local params = RaycastParams.new()
+			params.FilterDescendantsInstances = { character }
+			params.FilterType = Enum.RaycastFilterType.Exclude
+
+			-- Fan raycasts at multiple heights for robust detection
+			local fanAngles = { -0.2, 0, 0.2 }
+			local probeHeights = { 3.5, 2.8, 2.0 }
+
+			for _, angle in fanAngles do
+				local dir = (lookCF * CFrame.Angles(0, angle, 0)).LookVector * detectDist
+				for _, heightOffset in probeHeights do
+					local origin = hrpPos + Vector3.new(0, heightOffset, 0)
+					local result = workspace:Raycast(origin, dir, params)
+					if result then
+						local hitHeight = result.Position.Y - hrpPos.Y
+						if IsObstructionRelevant(result.Instance, hitHeight, hrpPos.Y) then
+							-- Scan downward from the hit point to find clearance
+							local downDir = Vector3.new(0, -hitHeight - 1, 0)
+							local downResult = workspace:Raycast(result.Position, downDir, params)
+							if downResult then
+								local clearance = result.Position.Y - downResult.Position.Y
+								if clearance < 4.5 then
+									shouldCrouch = true
+									break
+								end
+							else
+								-- No floor found below obstruction -> floating object, ignore
+							end
+						end
+					end
+				end
+				if shouldCrouch then break end
+			end
+
+			if shouldCrouch then
+				self:Crouch()
+			else
+				self:Uncrouch()
+			end
+		end)
+		if not self.RespawnConn then
+			self.RespawnConn = LocalPlayer.CharacterAdded:Connect(function()
+				self.IsCrouching = false
+			end)
 		end
-	end)
+	end
+
+	function AutoCrouch:Disable()
+		self:Uncrouch()
+		if self.Connection then
+			self.Connection:Disconnect()
+			self.Connection = nil
+		end
+		if self.RespawnConn then
+			self.RespawnConn:Disconnect()
+			self.RespawnConn = nil
+		end
+	end
 
 	Toggles.AutoCrouchToggle:OnChanged(function(Value)
 		if Value then
+			AutoCrouch:Enable()
 			Functions.Notify({
 				Title = "Auto Crouch",
 				Time = 12,
 				Body = "Make sure 'Toggle Crouch' is enabled in the game settings (press Tab to open settings panel). If it's off, the C key won't toggle crouch and Auto Crouch won't work correctly."
 			})
 		else
-			Uncrouch()
+			AutoCrouch:Disable()
 		end
 	end)
 
