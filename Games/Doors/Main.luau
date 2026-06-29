@@ -1691,6 +1691,164 @@ Toggles.DisableEntityJumpscares:OnChanged(function(Value)
 	end
 end)
 
+Groupboxes.Visuals_HUDTab  = Tabs.Visuals:AddLeftTabbox("HUD")
+Groupboxes.Visuals_HUD     = Groupboxes.Visuals_HUDTab:AddTab("HUD")
+
+Groupboxes.Visuals_HUD:AddToggle("ShowActualRoomToggle", { Text = "Show Actual Room", Default = false, Tooltip = "Displays the current room number on screen." })
+Groupboxes.Visuals_HUD:AddToggle("ShowStatisticsToggle", { Text = "Show Statistics", Default = false, Tooltip = "Displays FPS, Ping, Memory, CPU and GPU stats on screen." })
+Groupboxes.Visuals_HUD:AddToggle("ShowSpawnedEntitiesToggle", { Text = "Show Spawned Entities", Default = false, Tooltip = "Displays a list of nearby entities with distance and data." })
+Groupboxes.Visuals_HUD:AddSlider("HUDOpacity", { Text = "HUD Opacity", Min = 0.1, Max = 1, Default = 0.7, Rounding = 2, Compact = true })
+Groupboxes.Visuals_HUD:AddSlider("HUDTextSize", { Text = "Text Size", Min = 10, Max = 18, Default = 13, Rounding = 0, Compact = true })
+
+local function CreateHUDFrame()
+	local sg = Instance.new("ScreenGui")
+	sg.Name = "DoorsMenuRemake_HUD"
+	sg.ResetOnSpawn = false
+	sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	sg.DisplayOrder = 32766
+	sg.Parent = GetHiddenContainer()
+
+	local frame = Instance.new("Frame")
+	frame.Name = "HUDFrame"
+	frame.AnchorPoint = Vector2.new(0, 0)
+	frame.Position = UDim2.new(0, 10, 0.35, 0)
+	frame.Size = UDim2.new(0, 220, 0, 30)
+	frame.BackgroundColor3 = Color3.new(0, 0, 0)
+	frame.BackgroundTransparency = 0.3
+	frame.BorderSizePixel = 0
+	frame.Parent = sg
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
+
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Vertical
+	layout.Padding = UDim.new(0, 4)
+	layout.Parent = frame
+
+	local roomLabel = Instance.new("TextLabel")
+	roomLabel.Name = "RoomLabel"
+	roomLabel.Size = UDim2.new(1, -8, 0, 20)
+	roomLabel.Position = UDim2.new(0, 4, 0, 2)
+	roomLabel.BackgroundTransparency = 1
+	roomLabel.Font = Enum.Font.GothamBold
+	roomLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	roomLabel.TextXAlignment = Enum.TextXAlignment.Left
+	roomLabel.Text = ""
+	roomLabel.Parent = frame
+
+	local statsLabel = Instance.new("TextLabel")
+	statsLabel.Name = "StatsLabel"
+	statsLabel.Size = UDim2.new(1, -8, 0, 0)
+	statsLabel.AutomaticSize = Enum.AutomaticSize.Y
+	statsLabel.BackgroundTransparency = 1
+	statsLabel.Font = Enum.Font.Code
+	statsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+.TextAlignment = Enum.TextYAlignment.Top
+	statsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	statsLabel.TextWrapped = true
+	statsLabel.Text = ""
+	statsLabel.Visible = false
+	statsLabel.Parent = frame
+
+	local entitiesLabel = Instance.new("TextLabel")
+	entitiesLabel.Name = "EntitiesLabel"
+	entitiesLabel.Size = UDim2.new(1, -8, 0, 0)
+	entitiesLabel.AutomaticSize = Enum.AutomaticSize.Y
+	entitiesLabel.BackgroundTransparency = 1
+	entitiesLabel.Font = Enum.Font.Code
+	entitiesLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+	entitiesLabel.TextYAlignment = Enum.TextYAlignment.Top
+	entitiesLabel.TextXAlignment = Enum.TextXAlignment.Left
+	entitiesLabel.TextWrapped = true
+	entitiesLabel.Text = ""
+	entitiesLabel.Visible = false
+	entitiesLabel.Parent = frame
+
+	return sg, frame
+end
+
+Globals.HUDScreen, Globals.HUDFrame = CreateHUDFrame()
+Globals.HUDLastUpdate = 0
+Globals.HUDFPS = 60
+Globals.HUDFPSCount = 0
+Globals.HUDFPSLast = tick()
+
+Connections.HUDFPSCounter = Services.RunService.RenderStepped:Connect(function()
+	Globals.HUDFPSCount += 1
+	if tick() - Globals.HUDFPSLast >= 1 then
+		Globals.HUDFPS = Globals.HUDFPSCount
+		Globals.HUDFPSCount = 0
+		Globals.HUDFPSLast = tick()
+	end
+end)
+
+Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
+	if tick() - Globals.HUDLastUpdate < 0.25 then return end
+	Globals.HUDLastUpdate = tick()
+
+	if not Globals.HUDFrame or not Globals.HUDFrame.Parent then return end
+
+	local opacity = Options.HUDOpacity.Value
+	local textSize = Options.HUDTextSize.Value
+	local roomLabel = Globals.HUDFrame:FindFirstChild("RoomLabel")
+	local statsLabel = Globals.HUDFrame:FindFirstChild("StatsLabel")
+	local entitiesLabel = Globals.HUDFrame:FindFirstChild("EntitiesLabel")
+
+	if roomLabel then
+		roomLabel.TextSize = textSize
+		roomLabel.TextColor3 = Library.Scheme.AccentColor or Color3.fromRGB(0, 200, 255)
+	end
+	if statsLabel then statsLabel.TextSize = textSize - 2 end
+	if entitiesLabel then entitiesLabel.TextSize = textSize - 2 end
+
+	Globals.HUDFrame.BackgroundTransparency = 1 - opacity
+
+	local showRoom = Toggles.ShowActualRoomToggle.Value
+	local showStats = Toggles.ShowStatisticsToggle.Value
+	local showEntities = Toggles.ShowSpawnedEntitiesToggle.Value
+
+	if roomLabel then
+		roomLabel.Visible = showRoom
+		if showRoom then
+			local currentRoom = LocalPlayer:GetAttribute("CurrentRoom")
+			roomLabel.Text = "Room: " .. (currentRoom and tostring(currentRoom) or "?")
+		end
+	end
+
+	if statsLabel then
+		statsLabel.Visible = showStats
+		if showStats then
+			local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
+			local mem = math.floor(collectgarbage("count"))
+			statsLabel.Text = string.format(
+				"FPS: %d | Ping: %dms\nMemory: %dMB",
+				Globals.HUDFPS, ping, mem
+			)
+		end
+	end
+
+	if entitiesLabel then
+		entitiesLabel.Visible = showEntities
+		if showEntities then
+			local lines = {}
+			for _, Entity in Services.Workspace:GetChildren() do
+				local entityData = Entities[Entity.Name]
+				if entityData and Entity.PrimaryPart then
+					local dist = math.floor(LocalPlayer:DistanceFromCharacter(Entity.PrimaryPart.Position))
+					table.insert(lines, string.format("%s [%dm]", entityData.Alias, dist))
+				end
+			end
+			entitiesLabel.Text = #lines > 0 and table.concat(lines, "\n") or "None"
+		end
+	end
+
+	local totalHeight = 8
+	if showRoom then totalHeight = totalHeight + 22 end
+	if showStats then totalHeight = totalHeight + statsLabel.TextBounds.Y + 6 end
+	if showEntities then totalHeight = totalHeight + entitiesLabel.TextBounds.Y + 6 end
+	if totalHeight < 30 then totalHeight = 30 end
+	Globals.HUDFrame.Size = UDim2.new(0, 220, 0, totalHeight)
+end)
+
 Groupboxes.Visuals_RightTab     = Tabs.Visuals:AddRightTabbox("Entities / Settings")
 Groupboxes.Visuals_Entities     = Groupboxes.Visuals_RightTab:AddTab("Entities")
 Groupboxes.Visuals_EntitySettings = Groupboxes.Visuals_RightTab:AddTab("Settings")
@@ -3136,7 +3294,7 @@ Functions.HandleCharacter = function(NewCharacter)
 			Functions.Notify({
 				Title = "Auto Crouch",
 				Time = 12,
-				Body = "Make sure 'Toggle Crouch' is enabled in the game settings (press Tab to open settings panel). If it's off, the C key won't toggle crouch and Auto Crouch won't work correctly."
+				Body = "Make sure 'Toggle Crouch' is disabled in the game settings (press Tab to open settings panel). If it's off, the C key won't hold crouch properly and Auto Crouch won't work correctly."
 			})
 		else
 			AutoCrouch:Disable()
