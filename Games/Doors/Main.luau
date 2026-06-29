@@ -1699,175 +1699,179 @@ Groupboxes.Visuals_HUD:AddDivider()
 Groupboxes.Visuals_HUD:AddToggle("ShowSpawnedEntities", { Text = "Show Spawned Entities", Default = false, Tooltip = "Shows a list of spawned entities with distance in the HUD." })
 
 do
-	local HUDContainer = Instance.new("ScreenGui")
-	HUDContainer.Name = DoorsMenuRemake.ESPLibrary:GenerateRandomString()
-	HUDContainer.Parent = GetHiddenContainer()
-	HUDContainer.DisplayOrder = 32766
-	HUDContainer.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	HUDContainer.ResetOnSpawn = false
+	local HUDScreen = Instance.new("ScreenGui")
+	HUDScreen.Name = DoorsMenuRemake.ESPLibrary:GenerateRandomString()
+	HUDScreen.Parent = GetHiddenContainer()
+	HUDScreen.DisplayOrder = 32766
+	HUDScreen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	HUDScreen.ResetOnSpawn = false
 
-	local HUDFrame = Instance.new("Frame")
-	HUDFrame.Name = "HUDFrame"
-	HUDFrame.Parent = HUDContainer
-	HUDFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	HUDFrame.BackgroundTransparency = 0.3
-	HUDFrame.BorderSizePixel = 0
-	HUDFrame.Position = UDim2.new(0, 10, 0, 80)
-	HUDFrame.Size = UDim2.new(0, 260, 0, 60)
-	HUDFrame.Visible = false
+	local HUDHolder = Instance.new("Frame")
+	HUDHolder.Name = "HUDHolder"
+	HUDHolder.Parent = HUDScreen
+	HUDHolder.AutomaticSize = Enum.AutomaticSize.XY
+	HUDHolder.BackgroundColor3 = Library.Scheme.BackgroundColor
+	HUDHolder.BorderSizePixel = 0
+	HUDHolder.Position = UDim2.fromOffset(6, 80)
+	HUDHolder.Size = UDim2.fromOffset(0, 0)
+	HUDHolder.Visible = false
 
-	local UICorner = Instance.new("UICorner")
-	UICorner.CornerRadius = UDim.new(0, 6)
-	UICorner.Parent = HUDFrame
+	Instance.new("UICorner", HUDHolder).CornerRadius = UDim.new(0, Library.CornerRadius)
 
-	local UIStroke = Instance.new("UIStroke")
-	UIStroke.Color = Library.Scheme.AccentColor
-	UIStroke.Thickness = 1
-	UIStroke.Transparency = 0.3
-	UIStroke.Parent = HUDFrame
+	local UIScaleInst = Instance.new("UIScale", HUDHolder)
+	UIScaleInst.Scale = Library.DPIScale
+	table.insert(Library.Scales, UIScaleInst)
 
-	local Padding = Instance.new("UIPadding")
-	Padding.PaddingTop = UDim.new(0, 6)
-	Padding.PaddingBottom = UDim.new(0, 6)
-	Padding.PaddingLeft = UDim.new(0, 8)
-	Padding.PaddingRight = UDim.new(0, 8)
-	Padding.Parent = HUDFrame
+	local OutlineStroke = Instance.new("UIStroke")
+	OutlineStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	OutlineStroke.Color = Library.Scheme.OutlineColor
+	OutlineStroke.Thickness = 1
+	OutlineStroke.ZIndex = 2
+	OutlineStroke.Parent = HUDHolder
+	Library:AddToRegistry(OutlineStroke, { Color = "OutlineColor" })
 
-	local Layout = Instance.new("UIListLayout")
-	Layout.Parent = HUDFrame
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0, 3)
+	local ShadowStroke = Instance.new("UIStroke")
+	ShadowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	ShadowStroke.Color = Library.Scheme.DarkColor
+	ShadowStroke.Thickness = 1.5
+	ShadowStroke.ZIndex = 1
+	ShadowStroke.Parent = HUDHolder
+	Library:AddToRegistry(ShadowStroke, { Color = "DarkColor" })
+
+	local HUDTitle = Instance.new("TextLabel")
+	HUDTitle.Name = "HUDTitle"
+	HUDTitle.Parent = HUDHolder
+	HUDTitle.BackgroundTransparency = 1
+	HUDTitle.Size = UDim2.new(1, 0, 0, 34)
+	HUDTitle.Text = "HUD"
+	HUDTitle.TextSize = 15
+	HUDTitle.FontFace = Library.Scheme.Font
+	HUDTitle.TextColor3 = Library.Scheme.FontColor
+	HUDTitle.TextXAlignment = Enum.TextXAlignment.Left
+	Instance.new("UIPadding", HUDTitle).PaddingLeft = UDim.new(0, 12)
+	Instance.new("UIPadding", HUDTitle).PaddingRight = UDim.new(0, 12)
+	Library:AddToRegistry(HUDTitle, { TextColor3 = "FontColor" })
+
+	local TitleLine = Instance.new("Frame")
+	TitleLine.Parent = HUDHolder
+	TitleLine.BackgroundColor3 = Library.Scheme.OutlineColor
+	TitleLine.BorderSizePixel = 0
+	TitleLine.Position = UDim2.fromOffset(0, 34)
+	TitleLine.Size = UDim2.new(1, 0, 0, 1)
+	TitleLine.ZIndex = 2
+	Library:AddToRegistry(TitleLine, { BackgroundColor3 = "OutlineColor" })
+
+	local HUDContent = Instance.new("Frame")
+	HUDContent.Name = "HUDContent"
+	HUDContent.Parent = HUDHolder
+	HUDContent.AutomaticSize = Enum.AutomaticSize.Y
+	HUDContent.BackgroundTransparency = 1
+	HUDContent.Position = UDim2.fromOffset(0, 35)
+	HUDContent.Size = UDim2.new(1, 0, 0, 0)
+	HUDContent.ClipsDescendants = false
+
+	Instance.new("UIListLayout", HUDContent).Padding = UDim.new(0, 7)
+	local ContentPadding = Instance.new("UIPadding", HUDContent)
+	ContentPadding.PaddingBottom = UDim.new(0, 7)
+	ContentPadding.PaddingLeft = UDim.new(0, 7)
+	ContentPadding.PaddingRight = UDim.new(0, 7)
+	ContentPadding.PaddingTop = UDim.new(0, 7)
 
 	local RoomLabel = Instance.new("TextLabel")
 	RoomLabel.Name = "RoomLabel"
-	RoomLabel.Parent = HUDFrame
-	RoomLabel.BackgroundTransparency = 1
-	RoomLabel.Size = UDim2.new(1, 0, 0, 16)
-	RoomLabel.Text = "Room: ???"
-	RoomLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	RoomLabel.Parent = HUDContent
+	RoomLabel.AutomaticSize = Enum.AutomaticSize.XY
+	RoomLabel.BackgroundColor3 = Library.Scheme.MainColor
+	RoomLabel.BorderSizePixel = 0
+	RoomLabel.Size = UDim2.new(1, -14, 0, 28)
+	RoomLabel.Text = ""
 	RoomLabel.TextSize = 14
-	RoomLabel.Font = Enum.Font.GothamBold
+	RoomLabel.FontFace = Library.Scheme.Font
+	RoomLabel.TextColor3 = Library.Scheme.FontColor
 	RoomLabel.TextXAlignment = Enum.TextXAlignment.Left
-	RoomLabel.LayoutOrder = 1
 	RoomLabel.Visible = false
+	Instance.new("UICorner", RoomLabel).CornerRadius = UDim.new(0, Library.CornerRadius)
+	Library:AddToRegistry(RoomLabel, { BackgroundColor3 = "MainColor", TextColor3 = "FontColor" })
+	Instance.new("UIPadding", RoomLabel).PaddingLeft = UDim.new(0, 8)
 
 	local StatsLabel = Instance.new("TextLabel")
 	StatsLabel.Name = "StatsLabel"
-	StatsLabel.Parent = HUDFrame
-	StatsLabel.BackgroundTransparency = 1
-	StatsLabel.Size = UDim2.new(1, 0, 0, 60)
+	StatsLabel.Parent = HUDContent
+	StatsLabel.AutomaticSize = Enum.AutomaticSize.Y
+	StatsLabel.BackgroundColor3 = Library.Scheme.MainColor
+	StatsLabel.BorderSizePixel = 0
+	StatsLabel.Size = UDim2.new(1, -14, 0, 0)
 	StatsLabel.Text = ""
-	StatsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-	StatsLabel.TextSize = 12
-	StatsLabel.Font = Enum.Font.Code
+	StatsLabel.TextSize = 13
+	StatsLabel.FontFace = Library.Scheme.Font
+	StatsLabel.TextColor3 = Library.Scheme.FontColor
 	StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
 	StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
 	StatsLabel.TextWrapped = true
-	StatsLabel.LayoutOrder = 2
 	StatsLabel.Visible = false
+	Instance.new("UICorner", StatsLabel).CornerRadius = UDim.new(0, Library.CornerRadius)
+	Library:AddToRegistry(StatsLabel, { BackgroundColor3 = "MainColor", TextColor3 = "FontColor" })
+	local StatsPadding = Instance.new("UIPadding", StatsLabel)
+	StatsPadding.PaddingTop = UDim.new(0, 6)
+	StatsPadding.PaddingBottom = UDim.new(0, 6)
+	StatsPadding.PaddingLeft = UDim.new(0, 8)
 
 	local EntitiesFrame = Instance.new("Frame")
 	EntitiesFrame.Name = "EntitiesFrame"
-	EntitiesFrame.Parent = HUDFrame
-	EntitiesFrame.BackgroundTransparency = 1
-	EntitiesFrame.Size = UDim2.new(1, 0, 0, 120)
-	EntitiesFrame.LayoutOrder = 3
+	EntitiesFrame.Parent = HUDContent
+	EntitiesFrame.AutomaticSize = Enum.AutomaticSize.Y
+	EntitiesFrame.BackgroundColor3 = Library.Scheme.MainColor
+	EntitiesFrame.BorderSizePixel = 0
+	EntitiesFrame.Size = UDim2.new(1, -14, 0, 0)
 	EntitiesFrame.Visible = false
+	Instance.new("UICorner", EntitiesFrame).CornerRadius = UDim.new(0, Library.CornerRadius)
+	Library:AddToRegistry(EntitiesFrame, { BackgroundColor3 = "MainColor" })
 
 	local EntScroll = Instance.new("ScrollingFrame")
 	EntScroll.Name = "EntScroll"
 	EntScroll.Parent = EntitiesFrame
+	EntScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	EntScroll.BackgroundTransparency = 1
-	EntScroll.Size = UDim2.new(1, 0, 1, 0)
+	EntScroll.BorderSizePixel = 0
 	EntScroll.ScrollBarThickness = 3
 	EntScroll.ScrollBarImageColor3 = Library.Scheme.AccentColor
 	EntScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	EntScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	EntScroll.BorderSizePixel = 0
+	EntScroll.Size = UDim2.new(1, 0, 0, 0)
+	EntScroll.AutomaticSize = Enum.AutomaticSize.Y
+	Library:AddToRegistry(EntScroll, { ScrollBarImageColor3 = "AccentColor" })
 
-	local EntLayout = Instance.new("UIListLayout")
-	EntLayout.Parent = EntScroll
-	EntLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	EntLayout.Padding = UDim.new(0, 2)
+	local EntScrollLayout = Instance.new("UIListLayout", EntScroll)
+	EntScrollLayout.Padding = UDim.new(0, 2)
+	EntScrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-	local function CreateDragger(Frame)
-		local dragging = false
-		local dragInput, dragStart, startPos
+	local EntPadding = Instance.new("UIPadding", EntScroll)
+	EntPadding.PaddingTop = UDim.new(0, 6)
+	EntPadding.PaddingBottom = UDim.new(0, 6)
+	EntPadding.PaddingLeft = UDim.new(0, 8)
 
-		Frame.InputBegan:Connect(function(Input)
-			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-				dragging = true
-				dragStart = Input.Position
-				startPos = Frame.Position
-				Input.Changed:Connect(function()
-					if Input.UserInputState == Enum.UserInputState.End then dragging = false end
-				end)
-			end
-		end)
+	Library:MakeDraggable(HUDHolder, HUDTitle, true)
 
-		Frame.InputChanged:Connect(function(Input)
-			if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
-				dragInput = Input
-			end
-		end)
-
-		Services.UserInputService.InputChanged:Connect(function(Input)
-			if Input == dragInput and dragging then
-				local Delta = Input.Position - dragStart
-				Frame.Position = UDim2.new(
-					startPos.X.Scale, startPos.X.Offset + Delta.X,
-					startPos.Y.Scale, startPos.Y.Offset + Delta.Y
-				)
-			end
-		end)
-	end
-	CreateDragger(HUDFrame)
-
-	Globals.HUDFrame = HUDFrame
+	Globals.HUDFrame = HUDHolder
 	Globals.HUDStatsLabel = StatsLabel
 	Globals.HUDRoomLabel = RoomLabel
 	Globals.HUDEntitiesFrame = EntitiesFrame
-	Globals.HUDContainer = HUDContainer
+	Globals.HUDContainer = HUDScreen
 	Globals.HUDFpsCounter = 0
 	Globals.HUDLastFpsTime = tick()
 	Globals.HUDCurrentFps = 0
 end
 
-Toggles.ShowActualRoomToggle:OnChanged(function(Value)
-	if Value then
-		Globals.HUDFrame.Visible = true
-		Globals.HUDRoomLabel.Visible = true
-	else
-		Globals.HUDRoomLabel.Visible = false
-		if not Toggles.ShowStatistics.Value and not Toggles.ShowSpawnedEntities.Value then
-			Globals.HUDFrame.Visible = false
-		end
-	end
-end)
+local function UpdateHUDVisibility()
+	local AnyActive = Toggles.ShowActualRoomToggle.Value or Toggles.ShowStatistics.Value or Toggles.ShowSpawnedEntities.Value
+	Globals.HUDFrame.Visible = AnyActive
+	Globals.HUDRoomLabel.Visible = Toggles.ShowActualRoomToggle.Value
+	Globals.HUDStatsLabel.Visible = Toggles.ShowStatistics.Value
+	Globals.HUDEntitiesFrame.Visible = Toggles.ShowSpawnedEntities.Value
+end
 
-Toggles.ShowStatistics:OnChanged(function(Value)
-	if Value then
-		Globals.HUDFrame.Visible = true
-		Globals.HUDStatsLabel.Visible = true
-	else
-		Globals.HUDStatsLabel.Visible = false
-		if not Toggles.ShowActualRoomToggle.Value and not Toggles.ShowSpawnedEntities.Value then
-			Globals.HUDFrame.Visible = false
-		end
-	end
-end)
-
-Toggles.ShowSpawnedEntities:OnChanged(function(Value)
-	if Value then
-		Globals.HUDFrame.Visible = true
-		Globals.HUDEntitiesFrame.Visible = true
-	else
-		Globals.HUDEntitiesFrame.Visible = false
-		if not Toggles.ShowActualRoomToggle.Value and not Toggles.ShowStatistics.Value then
-			Globals.HUDFrame.Visible = false
-		end
-	end
-end)
+Toggles.ShowActualRoomToggle:OnChanged(UpdateHUDVisibility)
+Toggles.ShowStatistics:OnChanged(UpdateHUDVisibility)
+Toggles.ShowSpawnedEntities:OnChanged(UpdateHUDVisibility)
 
 Connections.HUDUpdate = Services.RunService.Heartbeat:Connect(function()
 	if not (Toggles.ShowActualRoomToggle.Value or Toggles.ShowStatistics.Value or Toggles.ShowSpawnedEntities.Value) then
@@ -1876,8 +1880,8 @@ Connections.HUDUpdate = Services.RunService.Heartbeat:Connect(function()
 
 	if Toggles.ShowActualRoomToggle.Value then
 		local CurrentRoom = LocalPlayer:GetAttribute("CurrentRoom")
-		local RoomText = CurrentRoom and ("Room: " .. tostring(CurrentRoom)) or "Room: ???"
-		Globals.HUDRoomLabel.Text = RoomText
+		local RoomNum = CurrentRoom and (tonumber(CurrentRoom) + 1) or nil
+		Globals.HUDRoomLabel.Text = RoomNum and ("  Room " .. tostring(RoomNum)) or "  Room ???"
 	end
 
 	if Toggles.ShowStatistics.Value then
@@ -1889,34 +1893,28 @@ Connections.HUDUpdate = Services.RunService.Heartbeat:Connect(function()
 			Globals.HUDLastFpsTime = Now
 		end
 
-		local StatsText = ""
+		local Lines = {}
+		table.insert(Lines, "  FPS: " .. tostring(Globals.HUDCurrentFps))
 
 		pcall(function()
-			StatsText = StatsText .. "FPS: " .. tostring(Globals.HUDCurrentFps)
+			table.insert(Lines, "  Ping: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. " ms")
 		end)
 
 		pcall(function()
-			local Ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
-			StatsText = StatsText .. "\nPing: " .. Ping .. " ms"
+			table.insert(Lines, "  Memory: " .. math.floor(Services.Stats:GetTotalMemoryUsageMb() * 10) / 10 .. " MB")
 		end)
 
 		pcall(function()
-			local Mem = math.floor(Services.Stats:GetTotalMemoryUsageMb() * 10) / 10
-			StatsText = StatsText .. "\nMemory: " .. Mem .. " MB"
-		end)
-
-		pcall(function()
-			local StatsItems = Services.Stats:GetPerformanceStats()
-			for _, StatItem in StatsItems do
+			for _, StatItem in Services.Stats:GetPerformanceStats() do
 				if StatItem.Name == "CPU" then
-					StatsText = StatsText .. "\nCPU: " .. math.floor(StatItem:GetValue() * 10) / 10 .. "%"
+					table.insert(Lines, "  CPU: " .. math.floor(StatItem:GetValue() * 10) / 10 .. "%")
 				elseif StatItem.Name == "GPU" then
-					StatsText = StatsText .. "\nGPU: " .. math.floor(StatItem:GetValue() * 10) / 10 .. "%"
+					table.insert(Lines, "  GPU: " .. math.floor(StatItem:GetValue() * 10) / 10 .. "%")
 				end
 			end
 		end)
 
-		Globals.HUDStatsLabel.Text = StatsText
+		Globals.HUDStatsLabel.Text = table.concat(Lines, "\n")
 	end
 
 	if Toggles.ShowSpawnedEntities.Value then
@@ -1937,17 +1935,23 @@ Connections.HUDUpdate = Services.RunService.Heartbeat:Connect(function()
 					if Distance < 10000 then
 						Index += 1
 						local Alias = Entities[Entity.Name].Alias
+						local DistColor = Distance < 50 and Library.Scheme.RedColor
+							or (Distance < 100 and Color3.fromRGB(255, 200, 80) or Library.Scheme.FontColor)
 
 						local EntLabel = Instance.new("TextLabel")
 						EntLabel.Parent = Scroll
+						EntLabel.AutomaticSize = Enum.AutomaticSize.XY
 						EntLabel.BackgroundTransparency = 1
-						EntLabel.Size = UDim2.new(1, 0, 0, 16)
-						EntLabel.Text = Alias .. "  [" .. tostring(Distance) .. "m]"
-						EntLabel.TextColor3 = Distance < 50 and Color3.fromRGB(255, 80, 80) or (Distance < 100 and Color3.fromRGB(255, 200, 80) or Color3.fromRGB(200, 200, 200))
-						EntLabel.TextSize = 12
-						EntLabel.Font = Enum.Font.Gotham
+						EntLabel.Size = UDim2.new(1, -8, 0, 20)
+						EntLabel.Text = "  " .. Alias .. "  [" .. tostring(Distance) .. "m]"
+						EntLabel.TextColor3 = DistColor
+						EntLabel.TextSize = 13
+						EntLabel.FontFace = Library.Scheme.Font
 						EntLabel.TextXAlignment = Enum.TextXAlignment.Left
 						EntLabel.LayoutOrder = Index
+						EntLabel.RichText = true
+						Library:AddToRegistry(EntLabel, { TextColor3 = "FontColor" })
+						EntLabel.TextColor3 = DistColor
 					end
 				end
 			end
@@ -1956,13 +1960,15 @@ Connections.HUDUpdate = Services.RunService.Heartbeat:Connect(function()
 				local NoEnt = Instance.new("TextLabel")
 				NoEnt.Parent = Scroll
 				NoEnt.BackgroundTransparency = 1
-				NoEnt.Size = UDim2.new(1, 0, 0, 16)
-				NoEnt.Text = "No entities nearby"
-				NoEnt.TextColor3 = Color3.fromRGB(120, 120, 120)
-				NoEnt.TextSize = 12
-				NoEnt.Font = Enum.Font.Gotham
+				NoEnt.Size = UDim2.new(1, -8, 0, 20)
+				NoEnt.Text = "  No entities nearby"
+				NoEnt.TextColor3 = Library.Scheme.FontColor
+				NoEnt.TextTransparency = 0.5
+				NoEnt.TextSize = 13
+				NoEnt.FontFace = Library.Scheme.Font
 				NoEnt.TextXAlignment = Enum.TextXAlignment.Left
 				NoEnt.LayoutOrder = 1
+				Library:AddToRegistry(NoEnt, { TextColor3 = "FontColor" })
 			end
 		end
 	end
