@@ -3031,7 +3031,7 @@ Functions.HandleCharacter = function(NewCharacter)
 		trail = true, dirt = true, grass = true, foliage = true,
 	}
 
-	local function IsObstructionRelevant(instance, hitHeight)
+	local function IsObstruction(instance)
 		if instance:IsA("Terrain") then return false end
 		if instance.Transparency >= 0.4 then return false end
 		if not instance:IsA("BasePart") then return false end
@@ -3043,7 +3043,7 @@ Functions.HandleCharacter = function(NewCharacter)
 			end
 		end
 
-		return hitHeight > 0.3 and hitHeight < 4.2
+		return true
 	end
 
 	function AutoCrouch:Enable()
@@ -3068,29 +3068,27 @@ Functions.HandleCharacter = function(NewCharacter)
 			local shouldCrouch = false
 			local detectDist = Options.AutoCrouchDistance.Value
 			local hrpPos = hrp.Position
-			local hrpCF = hrp.CFrame
-			local lookVector = hrpCF.LookVector
+			local lookVector = hrp.CFrame.LookVector
 			local params = RaycastParams.new()
 			params.FilterDescendantsInstances = { character }
 			params.FilterType = Enum.RaycastFilterType.Exclude
 
-			-- Fan raycasts at head height for wide coverage
-			local fanDirections = {
-				lookVector,
-				(lookVector + hrpCF.RightVector * -0.3).Unit,
-				(lookVector + hrpCF.RightVector * 0.3).Unit,
-			}
-			local headOrigin = hrpPos + Vector3.new(0, 3.2, 0)
+			local fwd = lookVector * detectDist
 
-			for _, dir in fanDirections do
-				local result = workspace:Raycast(headOrigin, dir * detectDist, params)
-				if result then
-					local hitHeight = result.Position.Y - hrpPos.Y
-					if IsObstructionRelevant(result.Instance, hitHeight) then
-						shouldCrouch = true
-						break
-					end
-				end
+			-- High ray at standing head height
+			local highResult = workspace:Raycast(hrpPos + Vector3.new(0, 3.2, 0), fwd, params)
+
+			-- Low ray at crouch head height
+			local lowResult = workspace:Raycast(hrpPos + Vector3.new(0, 1.2, 0), fwd, params)
+
+			-- If low ray hit the floor (normal pointing up), ignore it
+			if lowResult and lowResult.Normal.Y > 0.7 then
+				lowResult = nil
+			end
+
+			-- Only crouch if high ray hits AND low ray passes through
+			if highResult and not lowResult and IsObstruction(highResult.Instance) then
+				shouldCrouch = true
 			end
 
 			if shouldCrouch then
