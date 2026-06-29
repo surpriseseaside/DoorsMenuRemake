@@ -1691,7 +1691,8 @@ Toggles.DisableEntityJumpscares:OnChanged(function(Value)
 	end
 end)
 
-Groupboxes.Visuals_HUD = Tabs.Visuals:AddLeftGroupbox("HUD")
+Groupboxes.Visuals_HUDTab = Tabs.Visuals:AddLeftTabbox("HUD")
+Groupboxes.Visuals_HUD = Groupboxes.Visuals_HUDTab:AddTab("HUD")
 Groupboxes.Visuals_HUD:AddToggle("ShowActualRoomToggle", { Text = "Show Actual Room", Default = false, Tooltip = "Displays a movable HUD showing the current room." })
 Groupboxes.Visuals_HUD:AddToggle("ShowStatistics", { Text = "Show Statistics", Default = false, Tooltip = "Adds performance data to the HUD: memory, CPU, GPU, FPS, Ping." })
 Groupboxes.Visuals_HUD:AddDivider()
