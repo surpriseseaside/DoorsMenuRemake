@@ -3073,22 +3073,19 @@ Functions.HandleCharacter = function(NewCharacter)
 
 			local fwd = lookVector * detectDist
 
-			-- Ray from standing head height
-			local highResult = workspace:Raycast(hrpPos + Vector3.new(0, 3.5, 0), fwd, params)
+			-- Get actual head part for precise head position
+			local head = character:FindFirstChild("Head")
+			if head then
+				local headResult = workspace:Raycast(head.Position, fwd, params)
+				local waistResult = workspace:Raycast(hrpPos, fwd, params)
 
-			if highResult and IsObstruction(highResult.Instance) then
-				local hitHeight = highResult.Position.Y - hrpPos.Y
-				local norm = highResult.Normal
+				-- Waist ray is "blocked" only if it hit something above HRP level (wall, furniture)
+				local waistBlocked = waistResult and (waistResult.Position.Y - hrpPos.Y > 0.2)
 
-				if hitHeight > 0.3 and hitHeight < 4.5 then
-					-- Check if we hit the bottom face of something (overhead obstruction)
-					if norm.Y < -0.1 then
+				if headResult and not waistBlocked and IsObstruction(headResult.Instance) then
+					local hitHeight = headResult.Position.Y - hrpPos.Y
+					if hitHeight > 0 and hitHeight < 4.5 then
 						shouldCrouch = true
-					-- Check if we hit the side face of a thin beam-like part
-					elseif math.abs(norm.Y) < 0.15 and highResult.Instance:IsA("BasePart") then
-						if highResult.Instance.Size.Y < 3 then
-							shouldCrouch = true
-						end
 					end
 				end
 			end
