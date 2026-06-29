@@ -1700,7 +1700,20 @@ Groupboxes.Visuals_HUD:AddToggle("ShowSpawnedEntitiesToggle", { Text = "Show Spa
 Groupboxes.Visuals_HUD:AddSlider("HUDOpacity", { Text = "HUD Opacity", Min = 0.1, Max = 1, Default = 0.7, Rounding = 2, Compact = true })
 Groupboxes.Visuals_HUD:AddSlider("HUDTextSize", { Text = "Text Size", Min = 10, Max = 18, Default = 13, Rounding = 0, Compact = true })
 
+local function GetSchemeColor(name, fallback)
+	local ok, val = pcall(function() return Library.Scheme[name] end)
+	return ok and val or fallback
+end
+
+local function GetDPIScale()
+	local ok, val = pcall(function() return Library.DPIScale end)
+	if ok and val then return val / 100 end
+	return 1
+end
+
 local function CreateHUDFrame()
+	local dpi = GetDPIScale()
+
 	local sg = Instance.new("ScreenGui")
 	sg.Name = "DoorsMenuRemake_HUD"
 	sg.ResetOnSpawn = false
@@ -1708,62 +1721,100 @@ local function CreateHUDFrame()
 	sg.DisplayOrder = 32766
 	sg.Parent = GetHiddenContainer()
 
-	local frame = Instance.new("Frame")
-	frame.Name = "HUDFrame"
-	frame.AnchorPoint = Vector2.new(0, 0)
-	frame.Position = UDim2.new(0, 10, 0.35, 0)
-	frame.Size = UDim2.new(0, 220, 0, 30)
-	frame.BackgroundColor3 = Color3.new(0, 0, 0)
-	frame.BackgroundTransparency = 0.3
-	frame.BorderSizePixel = 0
-	frame.Parent = sg
-	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
+	local mainFrame = Instance.new("Frame")
+	mainFrame.Name = "HUDFrame"
+	mainFrame.AnchorPoint = Vector2.new(0, 0.5)
+	mainFrame.Position = UDim2.new(0, 12, 0.4, 0)
+	mainFrame.Size = UDim2.new(0, 230 * dpi, 0, 0)
+	mainFrame.BackgroundColor3 = GetSchemeColor("BackgroundColor", Color3.fromRGB(20, 20, 20))
+	mainFrame.BackgroundTransparency = 0.15
+	mainFrame.BorderSizePixel = 0
+	mainFrame.Parent = sg
+	Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 6)
+
+	local mainStroke = Instance.new("UIStroke")
+	mainStroke.Color = GetSchemeColor("OutlineColor", Color3.fromRGB(50, 50, 50))
+	mainStroke.Thickness = 1
+	mainStroke.Transparency = 0.3
+	mainStroke.Parent = mainFrame
+
+	local mainPadding = Instance.new("UIPadding")
+	mainPadding.PaddingTop = UDim.new(0, 6 * dpi)
+	mainPadding.PaddingBottom = UDim.new(0, 6 * dpi)
+	mainPadding.PaddingLeft = UDim.new(0, 8 * dpi)
+	mainPadding.PaddingRight = UDim.new(0, 8 * dpi)
+	mainPadding.Parent = mainFrame
 
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Vertical
-	layout.Padding = UDim.new(0, 4)
-	layout.Parent = frame
+	layout.Padding = UDim.new(0, 4 * dpi)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = mainFrame
 
-	local roomLabel = Instance.new("TextLabel")
-	roomLabel.Name = "RoomLabel"
-	roomLabel.Size = UDim2.new(1, -8, 0, 20)
-	roomLabel.Position = UDim2.new(0, 4, 0, 2)
-	roomLabel.BackgroundTransparency = 1
-	roomLabel.Font = Enum.Font.GothamBold
-	roomLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	roomLabel.TextXAlignment = Enum.TextXAlignment.Left
-	roomLabel.Text = ""
-	roomLabel.Parent = frame
+	local function MakeSection(name, order)
+		local holder = Instance.new("Frame")
+		holder.Name = name .. "Section"
+		holder.Size = UDim2.new(1, 0, 0, 0)
+		holder.AutomaticSize = Enum.AutomaticSize.Y
+		holder.BackgroundTransparency = 1
+		holder.LayoutOrder = order
+		holder.Parent = mainFrame
 
-	local statsLabel = Instance.new("TextLabel")
-	statsLabel.Name = "StatsLabel"
-	statsLabel.Size = UDim2.new(1, -8, 0, 0)
-	statsLabel.AutomaticSize = Enum.AutomaticSize.Y
-	statsLabel.BackgroundTransparency = 1
-	statsLabel.Font = Enum.Font.Code
-	statsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-	statsLabel.TextYAlignment = Enum.TextYAlignment.Top
-	statsLabel.TextXAlignment = Enum.TextXAlignment.Left
-	statsLabel.TextWrapped = true
-	statsLabel.Text = ""
-	statsLabel.Visible = false
-	statsLabel.Parent = frame
+		local sLayout = Instance.new("UIListLayout")
+		sLayout.FillDirection = Enum.FillDirection.Vertical
+		sLayout.Padding = UDim.new(0, 2 * dpi)
+		sLayout.Parent = holder
 
-	local entitiesLabel = Instance.new("TextLabel")
-	entitiesLabel.Name = "EntitiesLabel"
-	entitiesLabel.Size = UDim2.new(1, -8, 0, 0)
-	entitiesLabel.AutomaticSize = Enum.AutomaticSize.Y
-	entitiesLabel.BackgroundTransparency = 1
-	entitiesLabel.Font = Enum.Font.Code
-	entitiesLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-	entitiesLabel.TextYAlignment = Enum.TextYAlignment.Top
-	entitiesLabel.TextXAlignment = Enum.TextXAlignment.Left
-	entitiesLabel.TextWrapped = true
-	entitiesLabel.Text = ""
-	entitiesLabel.Visible = false
-	entitiesLabel.Parent = frame
+		local header = Instance.new("TextLabel")
+		header.Name = "Header"
+		header.Size = UDim2.new(1, 0, 0, 16 * dpi)
+		header.BackgroundTransparency = 1
+		header.Font = Enum.Font.GothamBold
+		header.TextSize = 11 * dpi
+		header.TextColor3 = GetSchemeColor("AccentColor", Color3.fromRGB(0, 150, 255))
+		header.TextXAlignment = Enum.TextXAlignment.Left
+		header.Text = name
+		header.Parent = holder
 
-	return sg, frame
+		local divider = Instance.new("Frame")
+		divider.Name = "Divider"
+		divider.Size = UDim2.new(1, 0, 0, 1)
+		divider.BackgroundColor3 = GetSchemeColor("OutlineColor", Color3.fromRGB(50, 50, 50))
+		divider.BackgroundTransparency = 0.5
+		divider.BorderSizePixel = 0
+		divider.Parent = holder
+
+		return holder
+	end
+
+	local function MakeLabel(parent, name, color, order)
+		local lbl = Instance.new("TextLabel")
+		lbl.Name = name
+		lbl.Size = UDim2.new(1, 0, 0, 0)
+		lbl.AutomaticSize = Enum.AutomaticSize.Y
+		lbl.BackgroundTransparency = 1
+		lbl.Font = Enum.Font.Code
+		lbl.TextSize = 10 * dpi
+		lbl.TextColor3 = color or GetSchemeColor("FontColor", Color3.fromRGB(255, 255, 255))
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.TextWrapped = true
+		lbl.Text = ""
+		lbl.Visible = false
+		lbl.LayoutOrder = order
+		lbl.Parent = parent
+		return lbl
+	end
+
+	local roomSection = MakeSection("Room", 1)
+	Globals.HUDRoomLabel = MakeLabel(roomSection, "RoomValue", GetSchemeColor("FontColor", Color3.fromRGB(255, 255, 255)), 2)
+
+	local statsSection = MakeSection("Statistics", 10)
+	Globals.HUDStatsLabel = MakeLabel(statsSection, "StatsValue", Color3.fromRGB(180, 180, 180), 11)
+
+	local entitySection = MakeSection("Entities", 20)
+	Globals.HEntitiesLabel = MakeLabel(entitySection, "EntitiesValue", Color3.fromRGB(255, 110, 110), 21)
+
+	return sg, mainFrame
 end
 
 pcall(function()
@@ -1785,6 +1836,33 @@ pcall(function()
 	end)
 end)
 
+pcall(function()
+	Connections.HUDThemeSync = Services.RunService.Heartbeat:Connect(function()
+		if tick() - Globals.HUDLastUpdate < 0.3 then return end
+		if not Globals.HUDFrame or not Globals.HUDFrame.Parent then return end
+
+		local mainFrame = Globals.HUDFrame
+		local stroke = mainFrame:FindFirstChildOfClass("UIStroke")
+		local padding = mainFrame:FindFirstChildOfClass("UIPadding")
+		local dpi = GetDPIScale()
+
+		mainFrame.BackgroundColor3 = GetSchemeColor("BackgroundColor", Color3.fromRGB(20, 20, 20))
+		if stroke then stroke.Color = GetSchemeColor("OutlineColor", Color3.fromRGB(50, 50, 50)) end
+
+		for _, section in mainFrame:GetChildren() do
+			if section:IsA("Frame") and section.Name:find("Section") then
+				local header = section:FindFirstChild("Header")
+				local div = section:FindFirstChild("Divider")
+				if header then header.TextColor3 = GetSchemeColor("AccentColor", Color3.fromRGB(0, 150, 255)) end
+				if div then div.BackgroundColor3 = GetSchemeColor("OutlineColor", Color3.fromRGB(50, 50, 50)) end
+			end
+		end
+
+		local roomLabel = Globals.HUDRoomLabel
+		if roomLabel then roomLabel.TextColor3 = GetSchemeColor("FontColor", Color3.fromRGB(255, 255, 255)) end
+	end)
+end)
+
 Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
 	pcall(function()
 		if tick() - Globals.HUDLastUpdate < 0.25 then return end
@@ -1792,73 +1870,87 @@ Connections.HUDHandler = Services.RunService.Heartbeat:Connect(function()
 
 		if not Globals.HUDFrame or not Globals.HUDFrame.Parent then return end
 
+		local dpi = GetDPIScale()
 		local opacity = Options.HUDOpacity.Value
 		local textSize = Options.HUDTextSize.Value
-		local roomLabel = Globals.HUDFrame:FindFirstChild("RoomLabel")
-		local statsLabel = Globals.HUDFrame:FindFirstChild("StatsLabel")
-		local entitiesLabel = Globals.HUDFrame:FindFirstChild("EntitiesLabel")
-
-		local accentColor = Color3.fromRGB(0, 200, 255)
-		pcall(function() accentColor = Library.Scheme.AccentColor end)
-
-		if roomLabel then
-			roomLabel.TextSize = textSize
-			roomLabel.TextColor3 = accentColor
-		end
-		if statsLabel then statsLabel.TextSize = textSize - 2 end
-		if entitiesLabel then entitiesLabel.TextSize = textSize - 2 end
 
 		Globals.HUDFrame.BackgroundTransparency = 1 - opacity
+		Globals.HUDFrame.Size = UDim2.new(0, 230 * dpi, 0, 0)
 
 		local showRoom = Toggles.ShowActualRoomToggle.Value
 		local showStats = Toggles.ShowStatisticsToggle.Value
 		local showEntities = Toggles.ShowSpawnedEntitiesToggle.Value
 
-		if roomLabel then
-			roomLabel.Visible = showRoom
+		local roomSection = Globals.HUDFrame:FindFirstChild("RoomSection")
+		local statsSection = Globals.HUDFrame:FindFirstChild("StatisticsSection")
+		local entitySection = Globals.HUDFrame:FindFirstChild("EntitiesSection")
+
+		if roomSection then
+			roomSection.Visible = showRoom
 			if showRoom then
-				local currentRoom = LocalPlayer:GetAttribute("CurrentRoom")
-				roomLabel.Text = "Room: " .. (currentRoom and tostring(currentRoom) or "?")
+				local lbl = Globals.HUDRoomLabel
+				if lbl then
+					lbl.Visible = true
+					lbl.TextSize = textSize * dpi
+					local currentRoom = LocalPlayer:GetAttribute("CurrentRoom")
+					lbl.Text = "  " .. (currentRoom and tostring(currentRoom) or "?")
+				end
 			end
 		end
 
-		if statsLabel then
-			statsLabel.Visible = showStats
+		if statsSection then
+			statsSection.Visible = showStats
 			if showStats then
-				local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
-				local mem = math.floor(collectgarbage("count"))
-				statsLabel.Text = string.format(
-					"FPS: %d | Ping: %dms\nMemory: %dMB",
-					Globals.HUDFPS, ping, mem
-				)
+				local lbl = Globals.HUDStatsLabel
+				if lbl then
+					lbl.Visible = true
+					lbl.TextSize = (textSize - 2) * dpi
+					local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
+					local mem = math.floor(collectgarbage("count"))
+					lbl.Text = string.format(
+						"  FPS: %d    Ping: %dms\n  Memory: %dMB",
+						Globals.HUDFPS, ping, mem
+					)
+				end
 			end
 		end
 
-		if entitiesLabel then
-			entitiesLabel.Visible = showEntities
+		if entitySection then
+			entitySection.Visible = showEntities
 			if showEntities then
-				local lines = {}
-				for _, Entity in Services.Workspace:GetChildren() do
-					local entityData = Entities[Entity.Name]
-					if entityData and Entity.PrimaryPart then
-						local success, dist = pcall(function()
-							return math.floor(LocalPlayer:DistanceFromCharacter(Entity.PrimaryPart.Position))
-						end)
-						if success then
-							table.insert(lines, string.format("%s [%dm]", entityData.Alias, dist))
+				local lbl = Globals.HEntitiesLabel
+				if lbl then
+					lbl.Visible = true
+					lbl.TextSize = (textSize - 2) * dpi
+					local lines = {}
+					for _, Entity in Services.Workspace:GetChildren() do
+						local entityData = Entities[Entity.Name]
+						if entityData and Entity.PrimaryPart then
+							local success, dist = pcall(function()
+								return math.floor(LocalPlayer:DistanceFromCharacter(Entity.PrimaryPart.Position))
+							end)
+							if success then
+								table.insert(lines, string.format("  %s  %dm", entityData.Alias, dist))
+							end
 						end
 					end
+					lbl.Text = #lines > 0 and table.concat(lines, "\n") or "  None"
 				end
-				entitiesLabel.Text = #lines > 0 and table.concat(lines, "\n") or "None"
 			end
 		end
 
-		local totalHeight = 8
-		if showRoom then totalHeight = totalHeight + 22 end
-		if statsLabel and showStats then totalHeight = totalHeight + statsLabel.TextBounds.Y + 6 end
-		if entitiesLabel and showEntities then totalHeight = totalHeight + entitiesLabel.TextBounds.Y + 6 end
-		if totalHeight < 30 then totalHeight = 30 end
-		Globals.HUDFrame.Size = UDim2.new(0, 220, 0, totalHeight)
+		local totalH = 12 * dpi
+		if showRoom then totalH = totalH + 26 * dpi end
+		if showStats then
+			local lbl = Globals.HUDStatsLabel
+			if lbl then totalH = totalH + lbl.TextBounds.Y + 8 * dpi end
+		end
+		if showEntities then
+			local lbl = Globals.HEntitiesLabel
+			if lbl then totalH = totalH + lbl.TextBounds.Y + 8 * dpi end
+		end
+		if totalH < 30 * dpi then totalH = 30 * dpi end
+		Globals.HUDFrame.Size = UDim2.new(0, 230 * dpi, 0, totalH)
 	end)
 end)
 
