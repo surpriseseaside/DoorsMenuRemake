@@ -5455,6 +5455,18 @@ for _, Toggle in Toggles do
 	end
 end
 
+if Library.KeybindFrame then
+	Library.KeybindFrame.Visible = false
+end
+
+if Toggles.KeybindMenuOpen then
+	Toggles.KeybindMenuOpen:OnChanged(function(Value)
+		if Library.KeybindFrame then
+			Library.KeybindFrame.Visible = false
+		end
+	end)
+end
+
 Connections.CustomBindHandler = Services.RunService.Heartbeat:Connect(function()
 	if not Library.Toggled then
 		BindListFrame.Visible = false
