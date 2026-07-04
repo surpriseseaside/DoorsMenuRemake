@@ -5228,17 +5228,18 @@ local function RebuildBindList()
 	end
 	BindListEntries = {}
 
-	local Count = 0
+	local Index = 0
 	for Toggle, Data in pairs(Globals.CustomBinds) do
 		if not Toggle.Disabled and not Toggle.Destroyed then
-			Count += 1
+			Index += 1
 
 			local Row = Instance.new("TextLabel")
 			Row.Name = "Bind_" .. Toggle.Text
 			Row.Parent = BindListContainer
 			Row.BackgroundTransparency = 1
-			Row.Size = UDim2.new(1, 0, 0, 16)
-			Row.Text = "  [" .. Data.Key .. "]  " .. Toggle.Text
+			Row.Size = UDim2.new(1, -10, 0, 16)
+			Row.LayoutOrder = Index
+			Row.Text = "[" .. Data.Key .. "]  " .. Toggle.Text
 			Row.TextColor3 = Library.Scheme.FontColor
 			Row.TextTransparency = 0.3
 			Row.TextSize = 13
@@ -5250,9 +5251,6 @@ local function RebuildBindList()
 			table.insert(BindListEntries, Row)
 		end
 	end
-
-	local MenuOpen = Toggles.KeybindMenuOpen and Toggles.KeybindMenuOpen.Value
-	BindListFrame.Visible = MenuOpen and Count > 0
 end
 
 local function UpdatePickerVisual(Toggle, KeyName)
@@ -5383,13 +5381,13 @@ do
 	local Holder = Instance.new("Frame")
 	Holder.Name = "Holder"
 	Holder.Parent = Screen
-	Holder.AutomaticSize = Enum.AutomaticSize.Y
-	Holder.Size = UDim2.new(0, 220, 0, 0)
+	Holder.Size = UDim2.new(0, 220, 0, 200)
 	Holder.BackgroundColor3 = Library.Scheme.BackgroundColor
 	Holder.BorderSizePixel = 0
 	Holder.Position = UDim2.new(0, 6, 0.5, 0)
 	Holder.AnchorPoint = Vector2.new(0, 0.5)
 	Holder.Visible = false
+	Holder.ClipsDescendants = true
 	Instance.new("UICorner", Holder).CornerRadius = UDim.new(0, Library.CornerRadius)
 	local HolderStroke = Instance.new("UIStroke")
 	HolderStroke.Color = Library.Scheme.OutlineColor
@@ -5418,14 +5416,23 @@ do
 	TitleLine.Size = UDim2.new(1, 0, 0, 1)
 	Library:AddToRegistry(TitleLine, { BackgroundColor3 = "OutlineColor" })
 
-	local Container = Instance.new("Frame")
+	local Container = Instance.new("ScrollingFrame")
 	Container.Name = "Container"
 	Container.Parent = Holder
-	Container.AutomaticSize = Enum.AutomaticSize.XY
 	Container.BackgroundTransparency = 1
+	Container.BorderSizePixel = 0
 	Container.Position = UDim2.new(0, 0, 0, 29)
-	Container.Size = UDim2.new(1, 0, 0, 0)
-	Instance.new("UIListLayout", Container).Padding = UDim.new(0, 2)
+	Container.Size = UDim2.new(1, 0, 1, -29)
+	Container.ScrollBarThickness = 3
+	Container.ScrollBarImageColor3 = Library.Scheme.AccentColor
+	Container.CanvasSize = UDim2.new(0, 0, 0, 0)
+	Container.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	Library:AddToRegistry(Container, { ScrollBarImageColor3 = "AccentColor" })
+
+	local Layout = Instance.new("UIListLayout", Container)
+	Layout.Padding = UDim.new(0, 2)
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+
 	local CP = Instance.new("UIPadding", Container)
 	CP.PaddingTop = UDim.new(0, 5)
 	CP.PaddingBottom = UDim.new(0, 5)
@@ -5448,18 +5455,15 @@ for _, Toggle in Toggles do
 	end
 end
 
-if Toggles.KeybindMenuOpen then
-	Toggles.KeybindMenuOpen:OnChanged(function(Value)
-		if Value and next(Globals.CustomBinds) then
-			BindListFrame.Visible = true
-		else
-			BindListFrame.Visible = false
-		end
-	end)
-end
-
 Connections.CustomBindHandler = Services.RunService.Heartbeat:Connect(function()
-	if not Library.Toggled then return end
+	if not Library.Toggled then
+		BindListFrame.Visible = false
+		return
+	end
+
+	local MenuOpen = Toggles.KeybindMenuOpen and Toggles.KeybindMenuOpen.Value
+	local HasBinds = next(Globals.CustomBinds) ~= nil
+	BindListFrame.Visible = MenuOpen and HasBinds
 
 	for Toggle, Data in pairs(Globals.CustomBinds) do
 		if Toggle.Disabled or Toggle.Destroyed then
