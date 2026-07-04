@@ -5148,14 +5148,6 @@ Library:OnUnload(function()
 		Globals.HUDContainer:Destroy()
 	end
 
-	if BindListFrame and BindListFrame.Parent then
-		BindListFrame.Parent:Destroy()
-	end
-
-	if Globals.BindOverlay and Globals.BindOverlay.Parent then
-		Globals.BindOverlay:Destroy()
-	end
-
 	if Main_Game then
 		Main_Game.fovtarget   = 70
 		Main_Game.spring.Speed = 8
@@ -5465,14 +5457,14 @@ end
 
 if Library.KeybindFrame then
 	Library.KeybindFrame.Visible = false
-	Library.KeybindFrame:ClearAllChildren()
-	Library.KeybindFrame:Destroy()
-	Library.KeybindFrame = nil
-	Library.KeybindContainer = nil
 end
 
 if Toggles.KeybindMenuOpen then
-	Toggles.KeybindMenuOpen.Callback = function() end
+	Toggles.KeybindMenuOpen:OnChanged(function(Value)
+		if Library.KeybindFrame then
+			Library.KeybindFrame.Visible = false
+		end
+	end)
 end
 
 Connections.CustomBindHandler = Services.RunService.Heartbeat:Connect(function()
