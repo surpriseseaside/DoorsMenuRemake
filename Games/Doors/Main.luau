@@ -1034,9 +1034,6 @@ Groupboxes.General_Character:AddToggle("SpeedBoostToggle", {
 Groupboxes.General_Character:AddToggle("FlyToggle", {
 	Text = "Fly", Default = false, Tooltip = "Allows you to freely fly around the map."
 })
-Toggles.FlyToggle:AddKeyPicker("FlyKeybind", {
-	Text = "Fly", Default = "F", Mode = "Toggle", SyncToggleState = true
-})
 Groupboxes.General_Character:AddSlider("FlySpeed", {
 	Text = "Fly Speed", Min = 0, Max = 100, Default = 20, Rounding = 0, Compact = true
 })
@@ -1060,9 +1057,6 @@ Options.SpeedBoostSlider:OnChanged(function(Value)
 	end
 end)
 
-Toggles.NoclipToggle:AddKeyPicker("NoclipKeybind", {
-	Text = "Noclip", Default = "N", Mode = "Toggle", SyncToggleState = true
-})
 Toggles.RemoveAcceleration:OnChanged(function(Value)
 	for Index, Old in PartProperties do
 		Index.CustomPhysicalProperties = Value and CustomPhysics or Old
@@ -1184,10 +1178,6 @@ Groupboxes.Self_Automation:AddDivider()
 Groupboxes.Self_Automation:AddToggle("AutoInteractToggle", {
 	Text = "Auto Interact", Default = false, Tooltip = "Automatically triggers nearby prompts."
 })
-Toggles.AutoInteractToggle:AddKeyPicker("AutoInteractKeybind", {
-	Text = "Auto Interact", Default = "R",
-	Mode = Library.IsMobile and "Toggle" or "Hold", SyncToggleState = true
-})
 Groupboxes.Self_Automation:AddDropdown("AutoInteractIgnoreList", {
 	Text = "Ignore List",
 	Values = { "Glitch Fragments", "Jeff Items", "Dropped Items", "Currency", "Minecarts", "Locks" },
@@ -1198,9 +1188,6 @@ Groupboxes.Self_Automation:AddDivider()
 Groupboxes.Self_Automation:AddToggle("AutoClosetToggle", {
 	Text = "Auto Closet", Default = false,
 	Tooltip = "Automatically hides in a nearby closet when an entity is near."
-})
-Toggles.AutoClosetToggle:AddKeyPicker("AutoClosetKeybind", {
-	Text = "Auto Closet", Default = "Q", Mode = "Toggle", SyncToggleState = true
 })
 Groupboxes.Self_Automation:AddDropdown("AutoClosetEntityList", {
 	Text = "Ignore List",
@@ -1398,10 +1385,6 @@ Toggles.DisableAnticheat:OnChanged(function(Value)
 		Globals.AnticheatDisabled = false
 	end
 end)
-Toggles.VelocityManipulationToggle:AddKeyPicker("VelocityManipulationKeybind", {
-	Text = "Velocity Manipulation", Default = "V",
-	Mode = Library.IsMobile and "Toggle" or "Hold", SyncToggleState = true
-})
 Groupboxes.Exploits_BypassRight:AddDropdown("VelocityManipulationMode", {
 	Values = {"Velocity", "Pivot"}, Text = "Manipulation Method",
 	Default = 1,
@@ -1442,9 +1425,6 @@ Toggles.PositionSpoof:OnChanged(function(Value)
 		end
 	end
 end)
-Toggles.PositionSpoof:AddKeyPicker("PositionSpoof", {
-	Text = "Position Spoof", Default = "B", Mode = "Toggle", SyncToggleState = true
-})
 Toggles.CrouchSpoof:OnChanged(function(Value)
 	if RemotesFolder:FindFirstChild("Crouch") then
 		RemotesFolder.Crouch:FireServer(Value and true or Functions.IsCrouching(), true)
@@ -1567,7 +1547,6 @@ Groupboxes.Visuals_Camera:AddToggle("RemoveCameraFog", { Text = "Remove Fog", De
 Groupboxes.Visuals_Camera:AddToggle("RemoveShaders", { Text = "Remove Shaders", Default = false, Tooltip = "Enables fullbright by removing shadows and lighting effects." })
 Groupboxes.Visuals_Camera:AddDivider()
 Groupboxes.Visuals_Camera:AddToggle("ThirdPersonToggle", { Text = "Third Person", Default = false, Tooltip = "Zooms out your camera, allowing you to see your character from behind." })
-Toggles.ThirdPersonToggle:AddKeyPicker("ThirdPersonKeybind", { Text = "Third Person", Default = "T", Mode = "Toggle", SyncToggleState = true })
 Groupboxes.Visuals_Camera:AddSlider("ThirdPersonOffsetX", { Text = "X Offset", Min = -10, Max = 10, Default = 1.5, Rounding = 1, Compact = true })
 Groupboxes.Visuals_Camera:AddSlider("ThirdPersonOffsetY", { Text = "Y Offset", Min = -10, Max = 10, Default = 1,   Rounding = 1, Compact = true })
 Groupboxes.Visuals_Camera:AddSlider("ThirdPersonOffsetZ", { Text = "Z Offset", Min = -10, Max = 10, Default = 5,   Rounding = 1, Compact = true })
@@ -4814,7 +4793,22 @@ end
 
 Globals.LastAutoInteractFire = tick()
 Connections.AutoInteract = Services.RunService.Heartbeat:Connect(function()
-	local Active = Toggles.AutoInteractToggle.Value or Options.AutoInteractKeybind:GetState()
+	local Active = Toggles.AutoInteractToggle.Value
+	if not Active and Globals.CustomBinds[Toggles.AutoInteractToggle] then
+		local Data = Globals.CustomBinds[Toggles.AutoInteractToggle]
+		if Data.Key == "Mouse1" then
+			Active = Services.UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+		elseif Data.Key == "Mouse2" then
+			Active = Services.UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+		elseif Data.Key == "Mouse3" then
+			Active = Services.UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton3)
+		else
+			local Success, Result = pcall(function()
+				return Services.UserInputService:IsKeyDown(Enum.KeyCode[Data.Key])
+			end)
+			if Success then Active = Result end
+		end
+	end
     if not Active then return end
     if tick() - Globals.LastAutoInteractFire < 1/60 then return end
 
@@ -5172,6 +5166,18 @@ Globals.CustomBinds = {}
 Globals.BindOverlay = nil
 Globals.ActiveBindToggle = nil
 
+local function UpdateToggleBindVisual(Toggle)
+	if not Toggle or not Toggle.TextLabel then return end
+	local Data = Globals.CustomBinds[Toggle]
+	if Data then
+		Toggle.TextLabel.Text = Toggle.Text .. "  <font color=\"rgb(125,85,255)\"><b>[" .. Data.Key .. "]</b></font>"
+		Toggle.TextLabel.RichText = true
+	else
+		Toggle.TextLabel.Text = Toggle.Text
+		Toggle.TextLabel.RichText = true
+	end
+end
+
 local function CreateBindOverlay(ToggleText)
 	if Globals.BindOverlay then Globals.BindOverlay:Destroy() end
 
@@ -5228,7 +5234,6 @@ local function StartBinding(Toggle)
 	Globals.ActiveBindToggle = Toggle
 	CreateBindOverlay(Toggle.Text)
 
-	local Input
 	local DidBind = false
 
 	local Connection
@@ -5245,6 +5250,7 @@ local function StartBinding(Toggle)
 
 		if InputObject.KeyCode == Enum.KeyCode.Backspace or InputObject.KeyCode == Enum.KeyCode.Delete then
 			Globals.CustomBinds[Toggle] = nil
+			UpdateToggleBindVisual(Toggle)
 			ClearBindOverlay()
 			Functions.Notify({ Title = "Bind removed", Body = Toggle.Text .. " is no longer bound." })
 			return
@@ -5265,11 +5271,13 @@ local function StartBinding(Toggle)
 			for OtherToggle, Data in Globals.CustomBinds do
 				if Data.Key == KeyName and OtherToggle ~= Toggle then
 					Globals.CustomBinds[OtherToggle] = nil
+					UpdateToggleBindVisual(OtherToggle)
 					break
 				end
 			end
 
 			Globals.CustomBinds[Toggle] = { Key = KeyName, WasDown = false }
+			UpdateToggleBindVisual(Toggle)
 			ClearBindOverlay()
 			Functions.Notify({ Title = "Bind set", Body = Toggle.Text .. " bound to " .. KeyName })
 		else
