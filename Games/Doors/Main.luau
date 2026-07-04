@@ -5168,6 +5168,161 @@ Library:OnUnload(function()
 	getgenv().DoorsMenuRemake = nil
 end)
 
+Globals.CustomBinds = {}
+Globals.BindOverlay = nil
+Globals.ActiveBindToggle = nil
+
+local function CreateBindOverlay(ToggleText)
+	if Globals.BindOverlay then Globals.BindOverlay:Destroy() end
+
+	local Screen = Instance.new("ScreenGui")
+	Screen.Name = "BindOverlay"
+	Screen.DisplayOrder = 32767
+	Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	Screen.Parent = GetHiddenContainer()
+
+	local Holder = Instance.new("Frame")
+	Holder.Parent = Screen
+	Holder.AutomaticSize = Enum.AutomaticSize.XY
+	Holder.BackgroundColor3 = Library.Scheme.BackgroundColor
+	Holder.BorderSizePixel = 0
+	Holder.AnchorPoint = Vector2.new(0.5, 0.5)
+	Holder.Position = UDim2.new(0.5, 0, 0.5, 0)
+	Instance.new("UICorner", Holder).CornerRadius = UDim.new(0, Library.CornerRadius)
+	local Outline = Instance.new("UIStroke")
+	Outline.Color = Library.Scheme.AccentColor
+	Outline.Thickness = 1
+	Outline.Parent = Holder
+
+	local Label = Instance.new("TextLabel")
+	Label.Parent = Holder
+	Label.AutomaticSize = Enum.AutomaticSize.XY
+	Label.BackgroundTransparency = 1
+	Label.Text = "Press a key to bind [" .. ToggleText .. "]\nBackspace to remove bind"
+	Label.TextColor3 = Library.Scheme.FontColor
+	Label.FontFace = Library.Scheme.Font
+	Label.TextSize = 14
+	Label.RichText = true
+	local Padding = Instance.new("UIPadding", Label)
+	Padding.PaddingTop = UDim.new(0, 10)
+	Padding.PaddingBottom = UDim.new(0, 10)
+	Padding.PaddingLeft = UDim.new(0, 16)
+	Padding.PaddingRight = UDim.new(0, 16)
+
+	Globals.BindOverlay = Screen
+	return Screen
+end
+
+local function ClearBindOverlay()
+	if Globals.BindOverlay then
+		Globals.BindOverlay:Destroy()
+		Globals.BindOverlay = nil
+	end
+	Globals.ActiveBindToggle = nil
+end
+
+local function StartBinding(Toggle)
+	if Globals.ActiveBindToggle then return end
+	if Toggle.Disabled then return end
+
+	Globals.ActiveBindToggle = Toggle
+	CreateBindOverlay(Toggle.Text)
+
+	local Input
+	local DidBind = false
+
+	local Connection
+	Connection = Services.UserInputService.InputBegan:Connect(function(InputObject, GameProcessed)
+		if GameProcessed then return end
+		if InputObject.UserInputType ~= Enum.UserInputType.Keyboard then
+			if InputObject.KeyCode == Enum.KeyCode.Unknown then
+				return
+			end
+		end
+
+		DidBind = true
+		Connection:Disconnect()
+
+		if InputObject.KeyCode == Enum.KeyCode.Backspace or InputObject.KeyCode == Enum.KeyCode.Delete then
+			Globals.CustomBinds[Toggle] = nil
+			ClearBindOverlay()
+			Functions.Notify({ Title = "Bind removed", Body = Toggle.Text .. " is no longer bound." })
+			return
+		end
+
+		local KeyName = nil
+		if InputObject.UserInputType == Enum.UserInputType.Keyboard then
+			KeyName = InputObject.KeyCode.Name
+		elseif InputObject.UserInputType == Enum.UserInputType.MouseButton1 then
+			KeyName = "Mouse1"
+		elseif InputObject.UserInputType == Enum.UserInputType.MouseButton2 then
+			KeyName = "Mouse2"
+		elseif InputObject.UserInputType == Enum.UserInputType.MouseButton3 then
+			KeyName = "Mouse3"
+		end
+
+		if KeyName and KeyName ~= "Unknown" then
+			for OtherToggle, Data in Globals.CustomBinds do
+				if Data.Key == KeyName and OtherToggle ~= Toggle then
+					Globals.CustomBinds[OtherToggle] = nil
+					break
+				end
+			end
+
+			Globals.CustomBinds[Toggle] = { Key = KeyName, WasDown = false }
+			ClearBindOverlay()
+			Functions.Notify({ Title = "Bind set", Body = Toggle.Text .. " bound to " .. KeyName })
+		else
+			ClearBindOverlay()
+		end
+	end)
+
+	task.delay(30, function()
+		if not DidBind and Connection.Connected then
+			Connection:Disconnect()
+			ClearBindOverlay()
+		end
+	end)
+end
+
+for _, Toggle in Toggles do
+	if typeof(Toggle) == "table" and Toggle.Holder and Toggle.Holder:IsA("GuiButton") then
+		Toggle.Holder.MouseButton2Click:Connect(function()
+			StartBinding(Toggle)
+		end)
+	end
+end
+
+Connections.CustomBindHandler = Services.RunService.Heartbeat:Connect(function()
+	if not Library.Toggled then return end
+
+	for Toggle, Data in Globals.CustomBinds do
+		if Toggle.Disabled or Toggle.Destroyed then
+			Globals.CustomBinds[Toggle] = nil
+			continue
+		end
+
+		local IsDown = false
+		if Data.Key == "Mouse1" then
+			IsDown = Services.UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+		elseif Data.Key == "Mouse2" then
+			IsDown = Services.UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+		elseif Data.Key == "Mouse3" then
+			IsDown = Services.UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton3)
+		else
+			local Success, Result = pcall(function()
+				return Services.UserInputService:IsKeyDown(Enum.KeyCode[Data.Key])
+			end)
+			if Success then IsDown = Result end
+		end
+
+		if IsDown and not Data.WasDown then
+			Toggle:SetValue(not Toggle.Value)
+		end
+		Data.WasDown = IsDown
+	end
+end)
+
 while not Globals.MainUI do task.wait() end
 DoorsMenuRemake.Interface.ApplySettingsTab(Window)
 Functions.Notify({ Title = "Successfully loaded in " .. math.floor((tick() - LoadStart) * 1000) / 1000 .. " seconds." , Body = "Press '" .. tostring(Options.MenuKeybind.Value) .. "' to toggle the UI."})
