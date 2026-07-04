@@ -5166,6 +5166,10 @@ Globals.CustomBinds = {}
 Globals.BindOverlay = nil
 Globals.ActiveBindToggle = nil
 
+local BindListFrame = nil
+local BindListContainer = nil
+local BindListEntries = {}
+
 local function CreateBindOverlay(ToggleText)
 	if Globals.BindOverlay then
 		Globals.BindOverlay:Destroy()
@@ -5216,11 +5220,45 @@ local function ClearBindOverlay()
 	Globals.ActiveBindToggle = nil
 end
 
+local function RebuildBindList()
+	for _, Entry in BindListEntries do
+		if Entry and Entry.Parent then
+			Entry:Destroy()
+		end
+	end
+	BindListEntries = {}
+
+	local Count = 0
+	for Toggle, Data in pairs(Globals.CustomBinds) do
+		if not Toggle.Disabled and not Toggle.Destroyed then
+			Count += 1
+
+			local Row = Instance.new("TextLabel")
+			Row.Name = "Bind_" .. Toggle.Text
+			Row.Parent = BindListContainer
+			Row.BackgroundTransparency = 1
+			Row.Size = UDim2.new(1, 0, 0, 16)
+			Row.Text = "  [" .. Data.Key .. "]  " .. Toggle.Text
+			Row.TextColor3 = Library.Scheme.FontColor
+			Row.TextTransparency = 0.3
+			Row.TextSize = 13
+			Row.FontFace = Library.Scheme.Font
+			Row.TextXAlignment = Enum.TextXAlignment.Left
+			Row.RichText = true
+			Library:AddToRegistry(Row, { TextColor3 = "FontColor" })
+
+			table.insert(BindListEntries, Row)
+		end
+	end
+
+	BindListFrame.Visible = Count > 0
+end
+
 local function UpdatePickerVisual(Toggle, KeyName)
 	local Picker = Toggle._CustomPicker
 	if not Picker then return end
 
-	if KeyName and KeyName ~= "None" then
+	if KeyName then
 		local X, Y = Library:GetTextBounds(KeyName, Picker.FontFace, Picker.TextSize, 10000)
 		Picker.Text = KeyName
 		Picker.Size = UDim2.fromOffset(X + 9, Y + 4)
@@ -5229,21 +5267,6 @@ local function UpdatePickerVisual(Toggle, KeyName)
 		Picker.Text = ""
 		Picker.Size = UDim2.fromOffset(18, 18)
 		Picker.Visible = false
-	end
-end
-
-local function UpdateKeybindMenuEntry(Toggle, KeyName, Mode)
-	local Entry = Toggle._KeybindEntry
-	if not Entry then return end
-
-	if KeyName and KeyName ~= "None" then
-		Entry:SetText((" [%s] %s (%s)"):format(KeyName, Toggle.Text, Mode or "Toggle"))
-		Entry:SetActive(true)
-		Entry:Display(Toggle.Value)
-	else
-		Entry:SetText(" " .. Toggle.Text)
-		Entry:SetActive(false)
-		Entry:Display(false)
 	end
 end
 
@@ -5273,55 +5296,6 @@ local function CreatePickerButton(Toggle)
 	Toggle._CustomPicker = Picker
 end
 
-local function CreateKeybindMenuEntry(Toggle)
-	if not Library.KeybindContainer then return nil end
-
-	local Holder = Instance.new("TextButton")
-	Holder.BackgroundTransparency = 1
-	Holder.Size = UDim2.new(1, 0, 0, 18)
-	Holder.Text = ""
-	Holder.AutoButtonColor = false
-	Holder.BorderSizePixel = 0
-	Holder.LayoutOrder = #Library.KeybindToggles + 1
-	Holder.Parent = Library.KeybindContainer
-
-	local Label = Instance.new("TextLabel")
-	Label.AutomaticSize = Enum.AutomaticSize.X
-	Label.BackgroundTransparency = 1
-	Label.Size = UDim2.new(1, 0, 1, 0)
-	Label.Text = " " .. Toggle.Text
-	Label.TextSize = 14
-	Label.TextTransparency = 0.5
-	Label.FontFace = Library.Scheme.Font
-	Label.TextColor3 = Library.Scheme.FontColor
-	Label.TextXAlignment = Enum.TextXAlignment.Left
-	Label.Parent = Holder
-	Library:AddToRegistry(Label, { TextColor3 = "FontColor" })
-
-	local Entry = {
-		Holder = Holder,
-		Label = Label,
-		Active = false,
-		Loaded = true,
-	}
-
-	function Entry:Display(State)
-		Label.TextTransparency = State and 0 or 0.5
-	end
-
-	function Entry:SetText(Text)
-		Label.Text = Text
-	end
-
-	function Entry:SetActive(Active)
-		Entry.Active = Active
-	end
-
-	Toggle._KeybindEntry = Entry
-	table.insert(Library.KeybindToggles, Entry)
-	return Entry
-end
-
 local function StartBinding(Toggle)
 	if Globals.ActiveBindToggle then return end
 	if Toggle.Disabled then return end
@@ -5345,7 +5319,7 @@ local function StartBinding(Toggle)
 		if Input.KeyCode == Enum.KeyCode.Backspace or Input.KeyCode == Enum.KeyCode.Delete then
 			Globals.CustomBinds[Toggle] = nil
 			UpdatePickerVisual(Toggle, nil)
-			UpdateKeybindMenuEntry(Toggle, nil)
+			RebuildBindList()
 			ClearBindOverlay()
 			Functions.Notify({ Title = "Bind removed", Body = Toggle.Text .. " is no longer bound." })
 			return
@@ -5367,9 +5341,9 @@ local function StartBinding(Toggle)
 			return
 		end
 
-		Globals.CustomBinds[Toggle] = { Key = KeyName, WasDown = false, Mode = "Toggle" }
+		Globals.CustomBinds[Toggle] = { Key = KeyName, WasDown = false }
 		UpdatePickerVisual(Toggle, KeyName)
-		UpdateKeybindMenuEntry(Toggle, KeyName, "Toggle")
+		RebuildBindList()
 		ClearBindOverlay()
 		Functions.Notify({ Title = "Bind set", Body = Toggle.Text .. " bound to " .. KeyName })
 	end)
@@ -5397,6 +5371,71 @@ local function IsKeyDown(KeyName)
 	end
 end
 
+do
+	local Screen = Instance.new("ScreenGui")
+	Screen.Name = "BindListMenu"
+	Screen.DisplayOrder = 32766
+	Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	Screen.Parent = GetHiddenContainer()
+	Screen.ResetOnSpawn = false
+
+	local Holder = Instance.new("Frame")
+	Holder.Name = "Holder"
+	Holder.Parent = Screen
+	Holder.AutomaticSize = Enum.AutomaticSize.XY
+	Holder.BackgroundColor3 = Library.Scheme.BackgroundColor
+	Holder.BorderSizePixel = 0
+	Holder.Position = UDim2.new(0, 6, 0.5, 0)
+	Holder.AnchorPoint = Vector2.new(0, 0.5)
+	Holder.Visible = false
+	Instance.new("UICorner", Holder).CornerRadius = UDim.new(0, Library.CornerRadius)
+	local HolderStroke = Instance.new("UIStroke")
+	HolderStroke.Color = Library.Scheme.OutlineColor
+	HolderStroke.Thickness = 1
+	HolderStroke.Parent = Holder
+	Library:AddToRegistry(Holder, { BackgroundColor3 = "BackgroundColor" })
+	Library:AddToRegistry(HolderStroke, { Color = "OutlineColor" })
+	table.insert(Library.Scales, Instance.new("UIScale", Holder))
+
+	local Title = Instance.new("TextLabel")
+	Title.Parent = Holder
+	Title.BackgroundTransparency = 1
+	Title.Size = UDim2.new(1, 0, 0, 28)
+	Title.Text = "  Keybinds"
+	Title.TextSize = 14
+	Title.FontFace = Library.Scheme.Font
+	Title.TextColor3 = Library.Scheme.FontColor
+	Title.TextXAlignment = Enum.TextXAlignment.Left
+	Library:AddToRegistry(Title, { TextColor3 = "FontColor" })
+
+	local TitleLine = Instance.new("Frame")
+	TitleLine.Parent = Holder
+	TitleLine.BackgroundColor3 = Library.Scheme.OutlineColor
+	TitleLine.BorderSizePixel = 0
+	TitleLine.Position = UDim2.new(0, 0, 0, 28)
+	TitleLine.Size = UDim2.new(1, 0, 0, 1)
+	Library:AddToRegistry(TitleLine, { BackgroundColor3 = "OutlineColor" })
+
+	local Container = Instance.new("Frame")
+	Container.Name = "Container"
+	Container.Parent = Holder
+	Container.AutomaticSize = Enum.AutomaticSize.XY
+	Container.BackgroundTransparency = 1
+	Container.Position = UDim2.new(0, 0, 0, 29)
+	Container.Size = UDim2.new(1, 0, 0, 0)
+	Instance.new("UIListLayout", Container).Padding = UDim.new(0, 2)
+	local CP = Instance.new("UIPadding", Container)
+	CP.PaddingTop = UDim.new(0, 5)
+	CP.PaddingBottom = UDim.new(0, 5)
+	CP.PaddingLeft = UDim.new(0, 5)
+	CP.PaddingRight = UDim.new(0, 5)
+
+	BindListFrame = Holder
+	BindListContainer = Container
+
+	Library:MakeDraggable(Holder, Title, true)
+end
+
 for _, Toggle in Toggles do
 	if typeof(Toggle) == "table" and Toggle.Holder and Toggle.Holder:IsA("GuiButton") and Toggle.TextLabel then
 		CreatePickerButton(Toggle)
@@ -5407,6 +5446,16 @@ for _, Toggle in Toggles do
 	end
 end
 
+if Toggles.KeybindMenuOpen then
+	Toggles.KeybindMenuOpen:OnChanged(function(Value)
+		if Value and next(Globals.CustomBinds) then
+			BindListFrame.Visible = true
+		else
+			BindListFrame.Visible = false
+		end
+	end)
+end
+
 Connections.CustomBindHandler = Services.RunService.Heartbeat:Connect(function()
 	if not Library.Toggled then return end
 
@@ -5414,7 +5463,6 @@ Connections.CustomBindHandler = Services.RunService.Heartbeat:Connect(function()
 		if Toggle.Disabled or Toggle.Destroyed then
 			Globals.CustomBinds[Toggle] = nil
 			UpdatePickerVisual(Toggle, nil)
-			UpdateKeybindMenuEntry(Toggle, nil)
 			continue
 		end
 
@@ -5422,9 +5470,6 @@ Connections.CustomBindHandler = Services.RunService.Heartbeat:Connect(function()
 
 		if Down and not Data.WasDown then
 			Toggle:SetValue(not Toggle.Value)
-			if Toggle._KeybindEntry then
-				Toggle._KeybindEntry:Display(Toggle.Value)
-			end
 		end
 
 		Data.WasDown = Down
@@ -5433,11 +5478,4 @@ end)
 
 while not Globals.MainUI do task.wait() end
 DoorsMenuRemake.Interface.ApplySettingsTab(Window)
-
-for _, Toggle in Toggles do
-	if typeof(Toggle) == "table" and Toggle._CustomPicker then
-		CreateKeybindMenuEntry(Toggle)
-	end
-end
-
 Functions.Notify({ Title = "Successfully loaded in " .. math.floor((tick() - LoadStart) * 1000) / 1000 .. " seconds." , Body = "Press '" .. tostring(Options.MenuKeybind.Value) .. "' to toggle the UI."})
