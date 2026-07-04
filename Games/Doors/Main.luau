@@ -5382,7 +5382,8 @@ do
 	local Holder = Instance.new("Frame")
 	Holder.Name = "Holder"
 	Holder.Parent = Screen
-	Holder.AutomaticSize = Enum.AutomaticSize.XY
+	Holder.AutomaticSize = Enum.AutomaticSize.Y
+	Holder.Size = UDim2.new(0, 220, 0, 0)
 	Holder.BackgroundColor3 = Library.Scheme.BackgroundColor
 	Holder.BorderSizePixel = 0
 	Holder.Position = UDim2.new(0, 6, 0.5, 0)
