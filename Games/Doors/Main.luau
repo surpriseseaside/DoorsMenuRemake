@@ -5166,18 +5166,6 @@ Globals.CustomBinds = {}
 Globals.BindOverlay = nil
 Globals.ActiveBindToggle = nil
 
-local function UpdateToggleBindVisual(Toggle)
-	if not Toggle or not Toggle.TextLabel then return end
-	local Data = Globals.CustomBinds[Toggle]
-	if Data then
-		Toggle.TextLabel.Text = Toggle.Text .. "  <font color=\"rgb(125,85,255)\"><b>[" .. Data.Key .. "]</b></font>"
-		Toggle.TextLabel.RichText = true
-	else
-		Toggle.TextLabel.Text = Toggle.Text
-		Toggle.TextLabel.RichText = true
-	end
-end
-
 local function CreateBindOverlay(ToggleText)
 	if Globals.BindOverlay then Globals.BindOverlay:Destroy() end
 
@@ -5227,6 +5215,120 @@ local function ClearBindOverlay()
 	Globals.ActiveBindToggle = nil
 end
 
+local function UpdatePickerVisual(Toggle, KeyName)
+	local Picker = Toggle._CustomPicker
+	if not Picker then return end
+
+	if KeyName and KeyName ~= "None" then
+		Picker.Text = KeyName
+		local X, Y = Library:GetTextBounds(KeyName, Picker.FontFace, Picker.TextSize, 10000)
+		Picker.Size = UDim2.fromOffset(X + 9, Y + 4)
+		Picker.Visible = true
+	else
+		Picker.Text = "None"
+		Picker.Size = UDim2.fromOffset(18, 18)
+		Picker.Visible = false
+	end
+end
+
+local function UpdateKeybindMenuEntry(Toggle, KeyName, Mode)
+	local Entry = Toggle._KeybindEntry
+	if not Entry then return end
+
+	if KeyName and KeyName ~= "None" then
+		Entry.Label.Text = ("[%s] %s (%s)"):format(KeyName, Toggle.Text, Mode or "Toggle")
+		Entry.Holder.Visible = true
+		Entry:Display(Toggle.Value)
+	else
+		Entry.Holder.Visible = false
+	end
+end
+
+local function CreateKeybindMenuEntry(Toggle)
+	local Holder = Instance.new("TextButton")
+	Holder.BackgroundTransparency = 1
+	Holder.Size = UDim2.new(1, 0, 0, 16)
+	Holder.Text = ""
+	Holder.Visible = false
+	Holder.Parent = Library.KeybindContainer
+
+	local Label = Instance.new("TextLabel")
+	Label.AutomaticSize = Enum.AutomaticSize.X
+	Label.BackgroundTransparency = 1
+	Label.Size = UDim2.fromScale(0, 1)
+	Label.Text = ""
+	Label.TextSize = 14
+	Label.TextTransparency = 0.5
+	Label.TextColor3 = Library.Scheme.FontColor
+	Label.FontFace = Library.Scheme.Font
+	Label.Parent = Holder
+	Library:AddToRegistry(Label, { TextColor3 = "FontColor" })
+
+	local Checkbox = Instance.new("Frame")
+	Checkbox.AnchorPoint = Vector2.new(0, 0.5)
+	Checkbox.BackgroundColor3 = Library.Scheme.MainColor
+	Checkbox.Position = UDim2.fromScale(0, 0.5)
+	Checkbox.Size = UDim2.fromOffset(14, 14)
+	Checkbox.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	Checkbox.Parent = Holder
+	Instance.new("UICorner", Checkbox).CornerRadius = UDim.new(0, Library.CornerRadius / 2)
+	Library:AddToRegistry(Checkbox, { BackgroundColor3 = "MainColor" })
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Color = Library.Scheme.OutlineColor
+	Stroke.Parent = Checkbox
+	Library:AddToRegistry(Stroke, { Color = "OutlineColor" })
+
+	local CheckImage = Instance.new("ImageLabel")
+	CheckImage.BackgroundTransparency = 1
+	CheckImage.ImageColor3 = Library.Scheme.FontColor
+	CheckImage.ImageTransparency = 1
+	CheckImage.Position = UDim2.fromOffset(2, 2)
+	CheckImage.Size = UDim2.new(1, -4, 1, -4)
+	CheckImage.Parent = Checkbox
+	Library:AddToRegistry(CheckImage, { ImageColor3 = "FontColor" })
+
+	local Entry = {}
+	Entry.Holder = Holder
+	Entry.Label = Label
+	Entry.Checkbox = Checkbox
+	Entry.CheckImage = CheckImage
+
+	function Entry:Display(State)
+		Label.TextTransparency = State and 0 or 0.5
+		CheckImage.ImageTransparency = State and 0 or 1
+	end
+
+	function Entry:SetText(Text)
+		Label.Text = Text
+	end
+
+	Toggle._KeybindEntry = Entry
+	return Entry
+end
+
+local function CreatePickerButton(Toggle)
+	local Picker = Instance.new("TextButton")
+	Picker.BackgroundColor3 = Library.Scheme.MainColor
+	Picker.Size = UDim2.fromOffset(18, 18)
+	Picker.Text = "None"
+	Picker.TextSize = 14
+	Picker.FontFace = Library.Scheme.Font
+	Picker.TextColor3 = Library.Scheme.FontColor
+	Picker.Visible = false
+	Picker.Parent = Toggle.TextLabel
+	Library:AddToRegistry(Picker, { BackgroundColor3 = "MainColor", TextColor3 = "FontColor" })
+
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Color = Library.Scheme.OutlineColor
+	Stroke.Parent = Picker
+	Library:AddToRegistry(Stroke, { Color = "OutlineColor" })
+
+	Instance.new("UICorner", Picker).CornerRadius = UDim.new(0, Library.CornerRadius / 2)
+
+	Toggle._CustomPicker = Picker
+	return Picker
+end
+
 local function StartBinding(Toggle)
 	if Globals.ActiveBindToggle then return end
 	if Toggle.Disabled then return end
@@ -5250,7 +5352,8 @@ local function StartBinding(Toggle)
 
 		if InputObject.KeyCode == Enum.KeyCode.Backspace or InputObject.KeyCode == Enum.KeyCode.Delete then
 			Globals.CustomBinds[Toggle] = nil
-			UpdateToggleBindVisual(Toggle)
+			UpdatePickerVisual(Toggle, "None")
+			UpdateKeybindMenuEntry(Toggle, "None")
 			ClearBindOverlay()
 			Functions.Notify({ Title = "Bind removed", Body = Toggle.Text .. " is no longer bound." })
 			return
@@ -5271,13 +5374,15 @@ local function StartBinding(Toggle)
 			for OtherToggle, Data in Globals.CustomBinds do
 				if Data.Key == KeyName and OtherToggle ~= Toggle then
 					Globals.CustomBinds[OtherToggle] = nil
-					UpdateToggleBindVisual(OtherToggle)
+					UpdatePickerVisual(OtherToggle, "None")
+					UpdateKeybindMenuEntry(OtherToggle, "None")
 					break
 				end
 			end
 
-			Globals.CustomBinds[Toggle] = { Key = KeyName, WasDown = false }
-			UpdateToggleBindVisual(Toggle)
+			Globals.CustomBinds[Toggle] = { Key = KeyName, WasDown = false, Mode = "Toggle" }
+			UpdatePickerVisual(Toggle, KeyName)
+			UpdateKeybindMenuEntry(Toggle, KeyName, "Toggle")
 			ClearBindOverlay()
 			Functions.Notify({ Title = "Bind set", Body = Toggle.Text .. " bound to " .. KeyName })
 		else
@@ -5286,7 +5391,7 @@ local function StartBinding(Toggle)
 	end)
 
 	task.delay(30, function()
-		if not DidBind and Connection.Connected then
+		if not DidBind and Connection and Connection.Connected then
 			Connection:Disconnect()
 			ClearBindOverlay()
 		end
@@ -5294,7 +5399,10 @@ local function StartBinding(Toggle)
 end
 
 for _, Toggle in Toggles do
-	if typeof(Toggle) == "table" and Toggle.Holder and Toggle.Holder:IsA("GuiButton") then
+	if typeof(Toggle) == "table" and Toggle.Holder and Toggle.Holder:IsA("GuiButton") and Toggle.TextLabel then
+		CreatePickerButton(Toggle)
+		CreateKeybindMenuEntry(Toggle)
+
 		Toggle.Holder.MouseButton2Click:Connect(function()
 			StartBinding(Toggle)
 		end)
@@ -5326,6 +5434,9 @@ Connections.CustomBindHandler = Services.RunService.Heartbeat:Connect(function()
 
 		if IsDown and not Data.WasDown then
 			Toggle:SetValue(not Toggle.Value)
+			if Toggle._KeybindEntry then
+				Toggle._KeybindEntry:Display(Toggle.Value)
+			end
 		end
 		Data.WasDown = IsDown
 	end
