@@ -5250,8 +5250,6 @@ local function RebuildBindList()
 			table.insert(BindListEntries, Row)
 		end
 	end
-
-	BindListFrame.Visible = Count > 0
 end
 
 local function UpdatePickerVisual(Toggle, KeyName)
