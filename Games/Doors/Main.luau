@@ -5237,10 +5237,10 @@ local function UpdateKeybindMenuEntry(Toggle, KeyName, Mode)
 
 	if KeyName and KeyName ~= "None" then
 		Entry.Label.Text = ("[%s] %s (%s)"):format(KeyName, Toggle.Text, Mode or "Toggle")
-		Entry.Holder.Visible = true
 		Entry:Display(Toggle.Value)
 	else
-		Entry.Holder.Visible = false
+		Entry.Label.Text = Toggle.Text
+		Entry:Display(false)
 	end
 end
 
@@ -5249,14 +5249,14 @@ local function CreateKeybindMenuEntry(Toggle)
 	Holder.BackgroundTransparency = 1
 	Holder.Size = UDim2.new(1, 0, 0, 16)
 	Holder.Text = ""
-	Holder.Visible = false
+	Holder.Visible = true
 	Holder.Parent = Library.KeybindContainer
 
 	local Label = Instance.new("TextLabel")
 	Label.AutomaticSize = Enum.AutomaticSize.X
 	Label.BackgroundTransparency = 1
 	Label.Size = UDim2.fromScale(0, 1)
-	Label.Text = ""
+	Label.Text = Toggle.Text
 	Label.TextSize = 14
 	Label.TextTransparency = 0.5
 	Label.TextColor3 = Library.Scheme.FontColor
@@ -5270,6 +5270,7 @@ local function CreateKeybindMenuEntry(Toggle)
 	Checkbox.Position = UDim2.fromScale(0, 0.5)
 	Checkbox.Size = UDim2.fromOffset(14, 14)
 	Checkbox.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	Checkbox.Visible = false
 	Checkbox.Parent = Holder
 	Instance.new("UICorner", Checkbox).CornerRadius = UDim.new(0, Library.CornerRadius / 2)
 	Library:AddToRegistry(Checkbox, { BackgroundColor3 = "MainColor" })
@@ -5295,7 +5296,9 @@ local function CreateKeybindMenuEntry(Toggle)
 
 	function Entry:Display(State)
 		Label.TextTransparency = State and 0 or 0.5
-		CheckImage.ImageTransparency = State and 0 or 1
+		if Checkbox.Visible then
+			CheckImage.ImageTransparency = State and 0 or 1
+		end
 	end
 
 	function Entry:SetText(Text)
@@ -5371,15 +5374,6 @@ local function StartBinding(Toggle)
 		end
 
 		if KeyName and KeyName ~= "Unknown" then
-			for OtherToggle, Data in Globals.CustomBinds do
-				if Data.Key == KeyName and OtherToggle ~= Toggle then
-					Globals.CustomBinds[OtherToggle] = nil
-					UpdatePickerVisual(OtherToggle, "None")
-					UpdateKeybindMenuEntry(OtherToggle, "None")
-					break
-				end
-			end
-
 			Globals.CustomBinds[Toggle] = { Key = KeyName, WasDown = false, Mode = "Toggle" }
 			UpdatePickerVisual(Toggle, KeyName)
 			UpdateKeybindMenuEntry(Toggle, KeyName, "Toggle")
@@ -5401,7 +5395,6 @@ end
 for _, Toggle in Toggles do
 	if typeof(Toggle) == "table" and Toggle.Holder and Toggle.Holder:IsA("GuiButton") and Toggle.TextLabel then
 		CreatePickerButton(Toggle)
-		CreateKeybindMenuEntry(Toggle)
 
 		Toggle.Holder.MouseButton2Click:Connect(function()
 			StartBinding(Toggle)
@@ -5444,4 +5437,11 @@ end)
 
 while not Globals.MainUI do task.wait() end
 DoorsMenuRemake.Interface.ApplySettingsTab(Window)
+
+for _, Toggle in Toggles do
+	if typeof(Toggle) == "table" and Toggle.TextLabel and Toggle._CustomPicker then
+		CreateKeybindMenuEntry(Toggle)
+	end
+end
+
 Functions.Notify({ Title = "Successfully loaded in " .. math.floor((tick() - LoadStart) * 1000) / 1000 .. " seconds." , Body = "Press '" .. tostring(Options.MenuKeybind.Value) .. "' to toggle the UI."})
